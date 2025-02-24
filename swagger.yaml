@@ -1,0 +1,68 @@
+openapi: 3.0.1
+info:
+  title: BankRegX Compliance API
+  description: AI-powered banking compliance assistant API.
+  version: 1.0.0
+  contact:
+    name: BankRegX Support
+    email: contact@bankregx.com
+    url: https://www.bankregx.com
+servers:
+  - url: https://www.bankregx.com/api
+    description: Production Server
+
+paths:
+  /bank:
+    post:
+      summary: Ask the AI Compliance Assistant a question
+      description: Submits a compliance-related question and retrieves an AI-generated response.
+      operationId: askComplianceAI
+      tags:
+        - Compliance AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - apiKey
+                - query
+                - userId
+              properties:
+                apiKey:
+                  type: string
+                  description: "Your API key for authentication."
+                  example: "abc123bankapikey"
+                query:
+                  type: string
+                  description: "The compliance-related question."
+                  example: "What are the AML requirements for UK banks?"
+                userId:
+                  type: string
+                  description: "Unique identifier for the user."
+                  example: "user_abc123"
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                    example: "AML requirements for UK banks include customer due diligence (CDD), transaction monitoring, and suspicious activity reporting."
+        "400":
+          description: Bad request (missing parameters)
+        "403":
+          description: Unauthorized (invalid API key)
+        "500":
+          description: Internal Server Error
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
