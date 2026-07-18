@@ -1,0 +1,5 @@
+/* Global Styles */ 
+body { background-color: #f0f0f0; font-family: Arial, sans-serif; } 
+h1, h2, h3 { color: #333; font-weight: bold; } 
+.my-button { background-color: #007bff; color: white; padding: 10px; border-radius: 5px; } 
+.my-button:hover { background-color: #0056b3; } 
