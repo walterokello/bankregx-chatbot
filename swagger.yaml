@@ -1,50 +1,36 @@
-openapi: 3.0.1
+openapi: 3.0.0
 info:
-  title: BankRegX Compliance API
-  description: AI-powered banking compliance assistant API.
+  title: BankRegX API
+  description: API documentation for BankRegX compliance chatbot
   version: 1.0.0
-  contact:
-    name: BankRegX Support
-    email: contact@bankregx.com
-    url: https://www.bankregx.com
+
 servers:
-  - url: https://www.bankregx.com/api
-    description: Production Server
+  - url: http://localhost:3001
+    description: Local development server
+  - url: https://bankregx.com
+    description: Production server
 
 paths:
-  /bank:
+  /api/ask:
     post:
-      summary: Ask the AI Compliance Assistant a question
-      description: Submits a compliance-related question and retrieves an AI-generated response.
-      operationId: askComplianceAI
-      tags:
-        - Compliance AI
+      summary: Ask a compliance question
+      description: Submit a compliance-related query to the AI chatbot and receive a response.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - apiKey
-                - query
-                - userId
               properties:
-                apiKey:
-                  type: string
-                  description: "Your API key for authentication."
-                  example: "abc123bankapikey"
                 query:
                   type: string
-                  description: "The compliance-related question."
-                  example: "What are the AML requirements for UK banks?"
+                  example: "What are the Basel III regulations?"
                 userId:
                   type: string
-                  description: "Unique identifier for the user."
-                  example: "user_abc123"
+                  example: "user_12345"
       responses:
         "200":
-          description: Successful response
+          description: Successful AI-generated response
           content:
             application/json:
               schema:
@@ -52,17 +38,44 @@ paths:
                 properties:
                   answer:
                     type: string
-                    example: "AML requirements for UK banks include customer due diligence (CDD), transaction monitoring, and suspicious activity reporting."
+                    example: "Basel III is a set of international banking regulations aimed at improving financial stability."
         "400":
-          description: Bad request (missing parameters)
-        "403":
-          description: Unauthorized (invalid API key)
+          description: Bad request (missing query or userId)
         "500":
-          description: Internal Server Error
+          description: Internal server error
 
-components:
-  securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-KEY
+  /api/feedback:
+    post:
+      summary: Submit user feedback
+      description: Send feedback on AI responses (useful or not useful).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  example: "user_12345"
+                aiResponse:
+                  type: string
+                  example: "Basel III is a set of banking regulations..."
+                feedback:
+                  type: string
+                  enum: ["useful", "not useful"]
+      responses:
+        "200":
+          description: Feedback successfully submitted
+        "400":
+          description: Bad request (missing fields)
+        "500":
+          description: Internal server error
+
+  /api/docs:
+    get:
+      summary: API Documentation
+      description: Returns the Swagger UI API documentation.
+      responses:
+        "200":
+          description: API docs loaded successfully
