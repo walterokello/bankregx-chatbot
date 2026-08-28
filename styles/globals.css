@@ -1,0 +1,314 @@
+/* Global reset & base styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #f7f8f9;
+  color: #000;
+}
+
+/* App shell */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f7f8f9;
+  color: #000;
+}
+
+.app--dark {
+  background-color: #020617;
+  color: #e5e7eb;
+}
+
+/* Banner */
+.banner {
+  background-color: #ff9800;
+  padding: 10px;
+  text-align: center;
+  font-weight: bold;
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #fff;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: #0073b1;
+  color: #fff;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.header-logo {
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.header-title {
+  margin: 0;
+  font-size: clamp(18px, 4vw, 24px);
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-link {
+  text-decoration: none;
+  color: #fff;
+  font-weight: bold;
+  font-size: clamp(14px, 3.2vw, 18px);
+}
+
+.header-toggle {
+  white-space: nowrap;
+}
+
+/* Main layout */
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  flex: 1;
+}
+
+/* Chat input */
+.chat-input-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+}
+
+.text-input,
+.textarea-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+}
+
+.chat-input {
+  padding: 12px 15px;
+  font-size: clamp(14px, 3.5vw, 16px);
+}
+
+/* Suggestions dropdown */
+.suggestions {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  width: 100%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  z-index: 10;
+  max-height: 230px;
+  overflow-y: auto;
+}
+
+.suggestions--light {
+  background-color: #fff;
+}
+
+.suggestions--dark {
+  background-color: #020617;
+}
+
+.suggestions-item {
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+}
+
+/* Buttons */
+.btn {
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn--primary {
+  background-color: #0073b1;
+  color: #fff;
+}
+
+.btn--fullwidth {
+  width: 100%;
+}
+
+.btn--ghost {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  color: #fff;
+}
+
+.btn--success {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.btn--danger {
+  background-color: #f44336;
+  color: #fff;
+}
+
+.btn--small {
+  padding: 6px 10px;
+}
+
+.btn--medium {
+  padding: 10px 16px;
+}
+
+/* Cards */
+.card {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: #fff;
+  color: #000;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 680px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.card--compact {
+  padding: 15px;
+  border-radius: 5px;
+  margin-top: 20px;
+}
+
+.card--dark {
+  background-color: #0b1120;
+  color: #e5e7eb;
+}
+
+.card-title {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.card-subtitle {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #555;
+}
+
+.app--dark .card-subtitle {
+  color: #9ca3af;
+}
+
+/* Feedback form */
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.form-footer {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form-message {
+  font-size: 14px;
+}
+
+/* Testimonials */
+.testimonials-empty {
+  color: #666;
+}
+
+.app--dark .testimonials-empty {
+  color: #9ca3af;
+}
+
+.testimonials-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.testimonial-item {
+  margin-bottom: 16px;
+}
+
+.testimonial-meta {
+  font-size: 14px;
+  color: #555;
+}
+
+.app--dark .testimonial-meta {
+  color: #9ca3af;
+}
+
+/* Footer */
+.footer {
+  background-color: #0073b1;
+  color: #fff;
+  padding: 15px;
+  text-align: center;
+}
+
+.footer a {
+  text-decoration: none;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Small tweaks for very narrow phones */
+@media (max-width: 400px) {
+  .card {
+    padding: 16px;
+  }
+
+  .banner {
+    padding-inline: 8px;
+  }
+}

@@ -1,0 +1,81 @@
+openapi: 3.0.0
+info:
+  title: BankRegX API
+  description: API documentation for BankRegX compliance chatbot
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+  - url: https://bankregx.com
+    description: Production server
+
+paths:
+  /api/ask:
+    post:
+      summary: Ask a compliance question
+      description: Submit a compliance-related query to the AI chatbot and receive a response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  example: "What are the Basel III regulations?"
+                userId:
+                  type: string
+                  example: "user_12345"
+      responses:
+        "200":
+          description: Successful AI-generated response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                    example: "Basel III is a set of international banking regulations aimed at improving financial stability."
+        "400":
+          description: Bad request (missing query or userId)
+        "500":
+          description: Internal server error
+
+  /api/feedback:
+    post:
+      summary: Submit user feedback
+      description: Send feedback on AI responses (useful or not useful).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  example: "user_12345"
+                aiResponse:
+                  type: string
+                  example: "Basel III is a set of banking regulations..."
+                feedback:
+                  type: string
+                  enum: ["useful", "not useful"]
+      responses:
+        "200":
+          description: Feedback successfully submitted
+        "400":
+          description: Bad request (missing fields)
+        "500":
+          description: Internal server error
+
+  /api/docs:
+    get:
+      summary: API Documentation
+      description: Returns the Swagger UI API documentation.
+      responses:
+        "200":
+          description: API docs loaded successfully
