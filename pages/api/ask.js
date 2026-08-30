@@ -102,6 +102,12 @@ function tokenize(text) {
     .filter((word) => !stopWords.has(word));
 }
 
+/*
+ * =========================================================
+ * INTENT / CATEGORY DETECTION
+ * =========================================================
+ */
+
 function detectGuidanceCategories(userQuery) {
   const text = clean(userQuery).toLowerCase();
 
@@ -111,33 +117,45 @@ function detectGuidanceCategories(userQuery) {
    * CONTROL DESIGN
    */
 
-  if (
+  const controlDesignIntent =
     text.includes("control") ||
     text.includes("control design") ||
+    text.includes("well designed") ||
     text.includes("design effectiveness") ||
     text.includes("preventive") ||
     text.includes("detective") ||
-    text.includes("mitigating control")
-  ) {
+    text.includes("mitigating control");
+
+  if (controlDesignIntent) {
     categories.add("control_design");
   }
 
   /*
    * AUDIT JUDGEMENT
+   *
+   * Do not classify something as audit judgement merely
+   * because words such as "evidence" appear in a control
+   * description.
+   *
+   * Require clearer audit / testing / finding intent.
    */
 
-  if (
-    text.includes("audit") ||
+  const auditIntent =
+    text.includes("audit finding") ||
+    text.includes("audit issue") ||
     text.includes("auditor") ||
-    text.includes("testing") ||
+    text.includes("audit conclusion") ||
     text.includes("test the control") ||
-    text.includes("evidence") ||
-    text.includes("sample") ||
-    text.includes("finding") ||
-    text.includes("deficiency") ||
+    text.includes("control testing") ||
+    text.includes("sample size") ||
+    text.includes("sampling") ||
     text.includes("operating effectiveness") ||
-    text.includes("issue")
-  ) {
+    text.includes("testing result") ||
+    text.includes("deficiency") ||
+    text.includes("finding severity") ||
+    text.includes("issue rating");
+
+  if (auditIntent) {
     categories.add("audit_judgement");
   }
 
@@ -145,25 +163,31 @@ function detectGuidanceCategories(userQuery) {
    * REGULATORY IMPACT
    */
 
-  if (
+  const regulatoryIntent =
     text.includes("regulation") ||
     text.includes("regulatory") ||
-    text.includes("rule") ||
+    text.includes("regulator") ||
     text.includes("fca") ||
     text.includes("pra") ||
     text.includes("ecb") ||
-    text.includes("fed") ||
-    text.includes("regulator") ||
-    text.includes("enforcement") ||
-    text.includes("consultation") ||
+    text.includes("federal reserve") ||
+    text.includes("enforcement action") ||
+    text.includes("consultation paper") ||
     text.includes("regulatory news") ||
-    text.includes("regulatory impact")
-  ) {
+    text.includes("regulatory impact");
+
+  if (regulatoryIntent) {
     categories.add("regulatory_impact");
   }
 
   return Array.from(categories);
 }
+
+/*
+ * =========================================================
+ * EXPERT GUIDANCE SCORING
+ * =========================================================
+ */
 
 function scoreGuidance(
   item,
@@ -209,9 +233,7 @@ function scoreGuidance(
 
   if (
     item.category &&
-    detectedCategories.includes(
-      item.category
-    )
+    detectedCategories.includes(item.category)
   ) {
     score += 8;
   }
@@ -232,9 +254,7 @@ function scoreGuidance(
 
       if (
         normalizedTag &&
-        lowerQuery.includes(
-          normalizedTag
-        )
+        lowerQuery.includes(normalizedTag)
       ) {
         score += 4;
       }
@@ -258,9 +278,15 @@ function scoreGuidance(
   return score;
 }
 
+/*
+ * =========================================================
+ * BALANCED EXPERT GUIDANCE RETRIEVAL
+ * =========================================================
+ */
+
 async function getRelevantExpertGuidance(
   userQuery,
-  maxItems = 5
+  maxItems = 8
 ) {
   try {
     const snapshot = await adminDb
@@ -270,9 +296,7 @@ async function getRelevantExpertGuidance(
       .get();
 
     const detectedCategories =
-      detectGuidanceCategories(
-        userQuery
-      );
+      detectGuidanceCategories(userQuery);
 
     const candidates =
       snapshot.docs.map((doc) => ({
@@ -280,7 +304,11 @@ async function getRelevantExpertGuidance(
         ...doc.data(),
       }));
 
-    const guidance = candidates
+    /*
+     * Score all relevant approved principles.
+     */
+
+    const scored = candidates
       .map((item) => ({
         ...item,
 
@@ -299,11 +327,107 @@ async function getRelevantExpertGuidance(
         (a, b) =>
           b.relevanceScore -
           a.relevanceScore
-      )
-      .slice(0, maxItems);
+      );
+
+    /*
+     * =====================================================
+     * BALANCED METHODOLOGY SELECTION
+     * =====================================================
+     *
+     * Do not simply retrieve the highest scoring rules.
+     *
+     * A professional control assessment may need several
+     * complementary judgement dimensions:
+     *
+     * - risk identification;
+     * - evidence / assumption discipline;
+     * - risk-control alignment;
+     * - frequency and timing;
+     * - design vs implementation / operating effectiveness;
+     * - conclusion discipline.
+     *
+     * First select the strongest principle from each
+     * available subcategory.
+     */
+
+    const selected = [];
+    const selectedIds = new Set();
+    const coveredSubcategories = new Set();
+
+    for (const item of scored) {
+      const subcategory =
+        clean(item.subcategory) ||
+        "general";
+
+      if (
+        !coveredSubcategories.has(
+          subcategory
+        )
+      ) {
+        selected.push(item);
+
+        selectedIds.add(
+          item.id
+        );
+
+        coveredSubcategories.add(
+          subcategory
+        );
+      }
+
+      if (
+        selected.length >=
+        maxItems
+      ) {
+        break;
+      }
+    }
+
+    /*
+     * Fill remaining capacity with the strongest remaining
+     * relevant principles.
+     */
+
+    if (
+      selected.length <
+      maxItems
+    ) {
+      for (const item of scored) {
+        if (
+          selectedIds.has(
+            item.id
+          )
+        ) {
+          continue;
+        }
+
+        selected.push(item);
+
+        selectedIds.add(
+          item.id
+        );
+
+        if (
+          selected.length >=
+          maxItems
+        ) {
+          break;
+        }
+      }
+    }
+
+    /*
+     * Present final guidance in relevance order.
+     */
+
+    selected.sort(
+      (a, b) =>
+        b.relevanceScore -
+        a.relevanceScore
+    );
 
     return {
-      guidance,
+      guidance: selected,
       detectedCategories,
     };
   } catch (error) {
@@ -318,6 +442,12 @@ async function getRelevantExpertGuidance(
     };
   }
 }
+
+/*
+ * =========================================================
+ * BUILD EXPERT METHODOLOGY CONTEXT
+ * =========================================================
+ */
 
 function buildExpertGuidanceContext(
   guidance
@@ -388,6 +518,12 @@ No specifically relevant approved BankRegX Expert Guidance was retrieved for thi
   return lines.join("\n");
 }
 
+/*
+ * =========================================================
+ * RECORD GUIDANCE USAGE
+ * =========================================================
+ */
+
 async function recordGuidanceUsage(
   guidance
 ) {
@@ -428,7 +564,7 @@ async function recordGuidanceUsage(
 
 /*
  * =========================================================
- * INTERNET SEARCH
+ * INTERNET SEARCH DECISION
  * =========================================================
  */
 
@@ -468,6 +604,12 @@ function shouldUseWebSearch(
   );
 }
 
+/*
+ * =========================================================
+ * BRAVE SEARCH
+ * =========================================================
+ */
+
 async function braveSearch(
   queryText,
   count = 5
@@ -495,7 +637,10 @@ async function braveSearch(
   url.searchParams.set(
     "count",
     String(
-      Math.min(count, 10)
+      Math.min(
+        count,
+        10
+      )
     )
   );
 
@@ -551,7 +696,7 @@ async function braveSearch(
 
 /*
  * =========================================================
- * WEB PAGE BROWSING
+ * BROWSE WEB PAGE
  * =========================================================
  */
 
@@ -595,12 +740,20 @@ async function browseUrl(
   if (!response.ok) {
     return {
       ok: false,
+
       status:
         response.status,
+
       error: `browse failed (${response.status})`,
+
       bodyPreview:
-        text.slice(0, 500),
-      url: url.toString(),
+        text.slice(
+          0,
+          500
+        ),
+
+      url:
+        url.toString(),
     };
   }
 
@@ -615,15 +768,29 @@ async function browseUrl(
   } catch (error) {
     return {
       ok: false,
+
       status: 500,
+
       error:
         "browse returned non-JSON",
+
       bodyPreview:
-        text.slice(0, 500),
-      url: url.toString(),
+        text.slice(
+          0,
+          500
+        ),
+
+      url:
+        url.toString(),
     };
   }
 }
+
+/*
+ * =========================================================
+ * BUILD EXTERNAL WEB CONTEXT
+ * =========================================================
+ */
 
 function buildWebContext(
   searchResults,
@@ -670,25 +837,34 @@ Link: ${clean(
     "\nBROWSED PAGES:"
   );
 
-  (browsedPages || []).forEach(
-    (page, index) => {
-      lines.push(
-        `(WEB #${index + 1}) ${
-          clean(page.title) ||
-          "Untitled"
-        }
-Link: ${clean(page.url)}
-Text: ${clean(page.text)}`
-      );
-    }
-  );
+  (browsedPages || [])
+    .forEach(
+      (page, index) => {
+        lines.push(
+          `(WEB #${index + 1}) ${
+            clean(
+              page.title
+            ) ||
+            "Untitled"
+          }
+Link: ${clean(
+            page.url
+          )}
+Text: ${clean(
+            page.text
+          )}`
+        );
+      }
+    );
 
-  return lines.join("\n\n");
+  return lines.join(
+    "\n\n"
+  );
 }
 
 /*
  * =========================================================
- * OPENAI
+ * OPENAI RESPONSE
  * =========================================================
  */
 
@@ -704,7 +880,7 @@ async function getChatGPTResponse(
 
         temperature: 0.1,
 
-        max_tokens: 1400,
+        max_tokens: 1600,
       }
     );
 
@@ -717,7 +893,7 @@ async function getChatGPTResponse(
 
 /*
  * =========================================================
- * MAIN HANDLER
+ * MAIN API HANDLER
  * =========================================================
  */
 
@@ -779,11 +955,12 @@ export default async function handler(
     const {
       guidance:
         expertGuidance,
+
       detectedCategories,
     } =
       await getRelevantExpertGuidance(
         normalizedQuery,
-        5
+        8
       );
 
     const expertGuidanceContext =
@@ -793,7 +970,7 @@ export default async function handler(
 
     /*
      * =====================================================
-     * 2. DETERMINE WHETHER LIVE WEB RESEARCH IS REQUIRED
+     * 2. DETERMINE WHETHER LIVE WEB RESEARCH IS NEEDED
      * =====================================================
      */
 
@@ -824,7 +1001,7 @@ export default async function handler(
 
     /*
      * =====================================================
-     * 3. BROWSE TOP SOURCES
+     * 3. BROWSE TOP SEARCH RESULTS
      * =====================================================
      */
 
@@ -900,16 +1077,20 @@ CORE EVIDENCE DISCIPLINE
 Before reaching any professional conclusion, distinguish internally between:
 
 1. KNOWN FACTS
+
 Information explicitly provided by the user or reliably established from an authoritative source.
 
 2. UNKNOWN / NOT PROVIDED
-Information required or relevant to the assessment but not supplied.
+
+Information relevant to the assessment but not supplied.
 
 3. ASSUMPTIONS
-Possible interpretations that might be reasonable but have not been established.
+
+Possible interpretations that may be reasonable but have not been established.
 
 4. PROFESSIONAL JUDGEMENT
-A conclusion drawn from the available facts, clearly distinguished from fact itself.
+
+A conclusion drawn from the available facts and clearly distinguished from fact itself.
 
 Never convert a plausible assumption into a known fact.
 
@@ -917,60 +1098,116 @@ Never invent missing control attributes merely to complete an assessment.
 
 If material information is missing, say so.
 
-Examples:
+However, do not confuse missing operating evidence with missing control-design information.
 
-If the user states:
-"The Finance Manager reviews a monthly exception report"
-
-KNOWN:
-- the stated reviewer is the Finance Manager;
-- there is an exception report;
-- the stated frequency is monthly.
-
-NOT KNOWN unless separately provided:
-- the underlying risk;
-- what transactions or activities are included;
-- how exceptions are defined;
-- where the control operates;
-- whether the report is complete and accurate;
-- whether the Finance Manager has sufficient competence or independence;
-- the escalation process;
-- evidence retained;
-- the required response time.
-
-Do not invent any of those attributes.
+If an attribute is explicitly stated in the control description, treat it as part of the described design unless there is a specific reason to clarify it.
 
 =========================================================
-CONTROL DESIGN ASSESSMENT
+CONTROL DESIGN PURPOSE
 =========================================================
 
-When assessing control design, first identify the underlying risk that the control is intended to mitigate.
+A control-design assessment asks:
 
-If the underlying risk has NOT been specified or reliably established:
+"If this control were implemented and operated as described, would it be capable of mitigating the identified risk to an acceptable degree?"
 
-- explicitly state that it is not known;
-- do not select a likely risk and present it as fact;
-- you may provide possible examples only if clearly labelled as hypothetical;
-- do not reach a definitive design-effectiveness conclusion where understanding that risk is necessary.
+The purpose is NOT to prove that the control actually operated.
 
-Assess the control, where information is available, using:
+That is a separate implementation or operating-effectiveness question.
+
+=========================================================
+RISK FIRST
+=========================================================
+
+When assessing a control, first identify the underlying risk the control is intended to mitigate.
+
+If the risk has not been provided or reliably established:
+
+- explicitly state that the underlying risk is unknown;
+- do not invent a likely risk and present it as fact;
+- possible risks may only be presented as clearly labelled hypotheses;
+- do not reach a definitive design conclusion if the risk is necessary to assess the control.
+
+If the risk IS provided, use that stated risk as the basis of the assessment.
+
+=========================================================
+RISK-TO-CONTROL CAUSAL ASSESSMENT
+=========================================================
+
+Do not assess a control merely by checking whether descriptive elements exist.
+
+Determine whether the control mechanism is actually capable of mitigating the stated risk.
+
+Ask:
+
+1. What event or failure creates the risk?
+2. At what point could the harm occur?
+3. Is the control preventive, detective, corrective or a combination?
+4. Does the control operate before or after the harmful event?
+5. If detective, is detection sufficiently timely to prevent, recover or limit the harm?
+6. Does the control cover the relevant risk population?
+7. Are thresholds appropriate to the risk?
+8. Is the control sufficiently precise to identify the relevant failures or exceptions?
+9. Does the control provide an effective response when a problem is identified?
+
+A well-documented control may still be poorly designed if:
+
+- it operates too late;
+- it excludes a material part of the risk population;
+- its threshold is unjustified;
+- it lacks sufficient precision;
+- or detecting the issue does not allow the harm to be prevented or reduced.
+
+=========================================================
+PREVENTIVE VS DETECTIVE CONTROLS
+=========================================================
+
+Explicitly consider whether a control is preventive or detective when relevant.
+
+A preventive control acts before the risk event or harm occurs.
+
+A detective control identifies an event or failure after it has occurred or begun to occur.
+
+Do not automatically treat a detective control as ineffective.
+
+Instead assess whether:
+
+- detection occurs quickly enough;
+- the event can still be stopped, recalled, corrected, recovered or remediated;
+- loss or harm can be materially limited;
+- escalation is timely enough to support that response.
+
+For payment controls, if payments have already been processed before review occurs, recognise that the review is detective rather than preventive.
+
+Then assess whether post-processing detection is sufficiently timely and effective against the stated risk.
+
+=========================================================
+CONTROL DESIGN ATTRIBUTES
+=========================================================
+
+Assess the control, where relevant, using:
 
 WHO
+
 Who performs, owns, reviews or approves the control?
 
 WHAT
+
 What activity is actually performed?
 
 WHY
-What underlying risk is the activity intended to mitigate?
+
+What underlying risk is the control intended to mitigate?
 
 WHEN
+
 What is the frequency or trigger?
 
 WHERE
+
 Where is the activity performed and where is evidence retained?
 
 HOW
+
 How is the activity performed, evidenced, challenged, investigated, escalated and documented?
 
 Also consider where relevant:
@@ -987,42 +1224,37 @@ Also consider where relevant:
 - system and data dependencies;
 - preventive versus detective nature.
 
-=========================================================
-FREQUENCY
-=========================================================
-
-Never say that a control frequency is appropriate merely because a frequency has been provided.
-
-The adequacy of frequency depends on matters such as:
-
-- nature of the underlying risk;
-- risk velocity;
-- transaction or event volume;
-- potential impact;
-- required response time;
-- whether the control is preventive or detective.
-
-For example:
-
-"Monthly" is a known frequency if stated by the user.
-
-Whether monthly is appropriate is a professional judgement that requires additional risk context.
+Do not invent missing answers merely to complete this framework.
 
 =========================================================
-CONTROL OWNERSHIP
+STATED DESIGN ATTRIBUTES
 =========================================================
 
-Do not say a person or role is an "appropriate owner" simply because the role sounds plausible.
+Treat attributes explicitly stated in the control description as part of the proposed design.
 
-Consider whether sufficient information exists about:
+For example, if the user says:
 
-- competence;
-- authority;
-- independence;
-- segregation of duties;
-- proximity to the activity being controlled.
+"The report reconciles the number and value of transactions to the source population"
 
-If these are unknown, identify them as unknown.
+then the design includes a stated completeness mechanism.
+
+For a design assessment, assess whether that mechanism appears capable of addressing completeness risk.
+
+Do NOT automatically say:
+
+"Assurance is required that the report is complete and accurate"
+
+as a reason to withhold a design conclusion.
+
+Testing whether the reconciliation actually operated belongs to implementation or operating-effectiveness testing.
+
+Similarly, if the design states:
+
+"Unresolved exceptions are escalated to the Head of Payments by 2:00pm"
+
+then the design contains an escalation route and deadline.
+
+Whether that escalation actually occurred effectively during the period is an operating-effectiveness question.
 
 =========================================================
 DESIGN VS IMPLEMENTATION VS OPERATING EFFECTIVENESS
@@ -1030,37 +1262,120 @@ DESIGN VS IMPLEMENTATION VS OPERATING EFFECTIVENESS
 
 Always distinguish:
 
-1. Design effectiveness
-Would the control, if performed as designed, be capable of mitigating the identified risk?
+1. DESIGN EFFECTIVENESS
 
-2. Implementation
+Would the described control, if implemented and operated as designed, be capable of mitigating the identified risk?
+
+2. IMPLEMENTATION
+
 Has the designed control actually been put in place?
 
-3. Operating effectiveness
-Has the implemented control operated consistently and effectively over the relevant period?
+3. OPERATING EFFECTIVENESS
 
-Do not treat missing operating evidence as automatic evidence of poor control design.
+Has the implemented control operated consistently and effectively during the relevant period?
+
+Do not require operating-effectiveness evidence before reaching a design conclusion.
+
+Examples of operating-effectiveness matters include:
+
+- whether the reviewer actually performed the control consistently;
+- whether escalation actually occurred;
+- whether evidence was retained in practice;
+- whether the system report was actually generated correctly throughout the period;
+- whether exceptions were actually investigated adequately.
+
+These may later need testing, but their absence from a design-assessment prompt does not automatically prevent a design conclusion when the intended design is clearly specified.
+
+=========================================================
+CONTROL FREQUENCY
+=========================================================
+
+Never say that a control frequency is appropriate merely because a frequency has been provided.
+
+Assess frequency against:
+
+- nature of the underlying risk;
+- risk velocity;
+- transaction or event volume;
+- potential impact;
+- time available to prevent or reduce harm;
+- whether the control is preventive or detective.
+
+For example:
+
+"Daily" is a known frequency if stated by the user.
+
+Whether daily is sufficiently timely depends on the nature of the risk and when harm occurs.
+
+=========================================================
+THRESHOLDS AND SCOPE
+=========================================================
+
+Do not assume a threshold is appropriate merely because it sounds consistent with the risk description.
+
+For example:
+
+A risk described as "high-value payment risk" does not automatically establish that £50,000 is the appropriate threshold.
+
+Assess whether:
+
+- the threshold has a risk-based rationale;
+- material events could occur below the threshold;
+- the control covers the relevant population;
+- another control covers excluded transactions where necessary.
+
+A threshold may represent a legitimate design choice, but its appropriateness should be supported by the risk.
+
+=========================================================
+CONTROL OWNERSHIP
+=========================================================
+
+Do not say a person or role is an "appropriate owner" merely because the role sounds plausible.
+
+Where relevant, consider:
+
+- competence;
+- authority;
+- segregation of duties;
+- independence;
+- proximity to the activity being controlled.
+
+However, distinguish between:
+
+DESIGN ATTRIBUTE:
+The design specifies that the reviewer is independent.
+
+OPERATING TEST:
+Evidence demonstrating that the reviewer actually remained independent.
+
+Do not demand operating evidence when only assessing design.
 
 =========================================================
 CONCLUSION DISCIPLINE
 =========================================================
 
-Do not force a positive or negative conclusion.
+Do not automatically default to:
 
-Where material information required for the assessment is missing, use a conclusion such as:
+"Insufficient information to conclude."
 
-"Insufficient information to conclude on design effectiveness."
+A professional control-design assessment should reach a supported conclusion where the described design contains enough information to do so.
 
-Then explain exactly what additional information is required.
+Possible conclusions include:
 
-Do not use unsupported language such as:
+- Appears well designed based on the information provided.
+- Broadly well designed, subject to specific design questions.
+- Material design weakness identified.
+- Insufficient information to conclude.
 
-- "the control has a solid foundation";
-- "the control is generally appropriate";
-- "the reviewer is appropriate";
-- "the frequency is suitable";
+Use "insufficient information" only where the missing information is genuinely material to assessing the design.
 
-unless the available information genuinely supports that conclusion.
+Do not withhold a conclusion merely because operating-effectiveness evidence has not been supplied.
+
+Where there is a significant unresolved design question, explain precisely what it is.
+
+For example:
+
+"The control is well structured as a detective control, but the adequacy of its timing and threshold relative to the stated risk should be established before concluding that it fully mitigates the risk."
 
 =========================================================
 RECOMMENDATION DISCIPLINE
@@ -1072,12 +1387,18 @@ Every recommendation should respond to:
 
 - an identified design gap;
 - an identified risk;
-- missing information necessary to assess the control;
+- a material uncertainty;
 - or a clearly explained weakness.
 
-For example, do not recommend adding a second reviewer merely because only one reviewer was mentioned.
+Do not recommend:
 
-First establish whether independence, segregation or review risk makes this necessary.
+- extra reviewers;
+- segregation of duties;
+- more evidence;
+- more frequent reviews;
+- additional escalation;
+
+unless the risk and control assessment supports that recommendation.
 
 =========================================================
 REGULATORY IMPACT
@@ -1101,12 +1422,15 @@ First determine:
 Clearly distinguish:
 
 REGULATORY FACT
+
 What an authoritative source actually states.
 
 BANKREGX JUDGEMENT
+
 BankRegX's analysis of likely relevance or control implications.
 
 RECOMMENDED ACTION
+
 What should reasonably be considered next.
 
 =========================================================
@@ -1123,6 +1447,7 @@ Rules:
 - Do not invent BankRegX principles that were not supplied.
 - If authoritative regulation conflicts with BankRegX methodology, the authoritative source takes precedence.
 - Apply critical guidance especially carefully.
+- Where multiple principles apply, reconcile them into one coherent professional judgement rather than treating them as isolated checklist items.
 
 =========================================================
 LIVE INTERNET MATERIAL
@@ -1135,7 +1460,7 @@ ${searchStatus}
 
 Rules for external material:
 
-- Prefer browsed source content over search snippets.
+- Prefer browsed source content over search-result snippets.
 - Cite browsed sources as (WEB #N).
 - Never fabricate a source.
 - Never fabricate regulatory requirements, dates, enforcement outcomes or quotations.
@@ -1151,36 +1476,52 @@ For a control-design question, where appropriate use:
 
 ### Preliminary conclusion
 
-State whether there is:
-- sufficient information to assess design;
-- insufficient information to conclude;
-- or a supported design conclusion.
+Give the clearest supported design judgement available.
+
+Do not automatically default to insufficient information.
 
 ### Known from the description
 
-Only state facts actually supplied.
+Only state facts or design attributes actually supplied.
 
-### Information not provided
+### Material information not provided
 
-Identify material unknowns.
+Include only missing information that genuinely affects the design assessment.
+
+Do NOT populate this section with matters that are primarily operating-effectiveness testing requirements.
+
+### Risk-to-control assessment
+
+Explain whether the control mechanism is capable of mitigating the stated risk.
+
+Where relevant address:
+
+- preventive vs detective nature;
+- timing;
+- scope;
+- threshold;
+- precision;
+- population;
+- response and escalation;
+- point at which harm occurs.
 
 ### Control design assessment
 
-Assess only attributes supported by the information available.
-
 Use Who / What / Why / When / Where / How where useful.
 
-Do not invent missing answers merely to complete the framework.
+Do not allow this framework to replace risk-based judgement.
 
-### Key design considerations
+### Key design strengths
 
-Explain genuine strengths, gaps or dependencies.
+Identify genuine strengths supported by the stated design.
 
-### Information required to conclude
+### Key design questions or weaknesses
 
-List the additional information genuinely needed.
+Identify genuine weaknesses, gaps or material uncertainties.
 
-Do NOT use a "Recommendations" section unless there is sufficient evidence for a specific recommendation.
+### Overall design conclusion
+
+Provide a clear professional judgement and explain any qualification.
 
 =========================================================
 STYLE
@@ -1189,6 +1530,7 @@ STYLE
 Write for experienced banking, audit, controls, risk and compliance professionals.
 
 Be:
+
 - precise;
 - sceptical;
 - evidence-led;
@@ -1198,7 +1540,13 @@ Be:
 
 Do not reward completeness over accuracy.
 
-It is better to say "not known" than to fill a gap with a plausible assumption.
+Do not simply fill a template.
+
+The central question is:
+
+"Is this control, as designed, actually capable of mitigating the stated risk?"
+
+It is better to identify one material risk-control design problem than to produce ten generic observations.
 
 The objective is not merely to produce an answer.
 
@@ -1208,25 +1556,22 @@ The objective is to help a professional make a better and more defensible judgem
 
     /*
      * =====================================================
-     * 5. BUILD CLEAN ASSESSMENT PROMPT
+     * 5. BUILD CLEAN STANDALONE ASSESSMENT
      * =====================================================
      *
-     * IMPORTANT:
+     * Previous AI responses are deliberately NOT included.
      *
-     * Previous AI responses are deliberately NOT inserted
-     * here.
+     * This prevents prior incorrect AI conclusions from
+     * contaminating subsequent assessments.
      *
-     * This prevents incorrect conclusions from earlier
-     * assessments becoming apparent "evidence" in later
-     * assessments.
-     *
-     * We still save every response below for auditability.
-     * Proper case/thread memory can be introduced later.
+     * Proper case-specific conversation memory can be
+     * introduced later.
      * =====================================================
      */
 
     const messages = [
       systemMessage,
+
       {
         role: "user",
         content:
@@ -1247,7 +1592,7 @@ The objective is to help a professional make a better and more defensible judgem
 
     /*
      * =====================================================
-     * 7. SAVE RESPONSE AND INTELLIGENCE TRACE
+     * 7. SAVE RESPONSE + INTELLIGENCE TRACE
      * =====================================================
      */
 
@@ -1286,6 +1631,25 @@ The objective is to help a professional make a better and more defensible judgem
                   item.title
               ),
 
+            guidanceSubcategories:
+              expertGuidance.map(
+                (item) =>
+                  item.subcategory ||
+                  null
+              ),
+
+            guidanceScores:
+              expertGuidance.map(
+                (item) => ({
+                  guidanceId:
+                    item.guidanceId ||
+                    item.id,
+
+                  relevanceScore:
+                    item.relevanceScore,
+                })
+              ),
+
             detectedCategories,
 
             browsedSources:
@@ -1304,8 +1668,14 @@ The objective is to help a professional make a better and more defensible judgem
             usedWebSearch:
               useWebSearch,
 
+            expertGuidanceCount:
+              expertGuidance.length,
+
             reasoningMode:
               "standalone_assessment",
+
+            retrievalMode:
+              "balanced_methodology",
 
             historyIncluded:
               false,
@@ -1328,7 +1698,7 @@ The objective is to help a professional make a better and more defensible judgem
 
     /*
      * =====================================================
-     * 8. RECORD GUIDANCE USAGE
+     * 8. RECORD EXPERT GUIDANCE USAGE
      * =====================================================
      */
 
@@ -1365,6 +1735,9 @@ The objective is to help a professional make a better and more defensible judgem
               category:
                 item.category,
 
+              subcategory:
+                item.subcategory,
+
               priority:
                 item.priority,
 
@@ -1398,6 +1771,9 @@ The objective is to help a professional make a better and more defensible judgem
 
           reasoningMode:
             "standalone_assessment",
+
+          retrievalMode:
+            "balanced_methodology",
 
           browseDebug,
 
