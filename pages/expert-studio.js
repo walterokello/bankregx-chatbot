@@ -4,6 +4,8 @@ import {
   useState,
 } from "react";
 
+import BankRegXNav from "../components/BankRegXNav";
+
 const EMPTY_FORM = {
   title: "",
   guidance: "",
@@ -78,7 +80,7 @@ export default function ExpertStudio() {
 
   /*
    * =====================================================
-   * VERSION HISTORY STATE
+   * VERSION HISTORY
    * =====================================================
    */
 
@@ -96,6 +98,12 @@ export default function ExpertStudio() {
     historyError,
     setHistoryError,
   ] = useState("");
+
+  /*
+   * =====================================================
+   * SESSION
+   * =====================================================
+   */
 
   useEffect(() => {
     checkSession();
@@ -115,15 +123,16 @@ export default function ExpertStudio() {
       const data =
         await response.json();
 
-      setAuthenticated(
+      const loggedIn =
         Boolean(
           data.authenticated
-        )
+        );
+
+      setAuthenticated(
+        loggedIn
       );
 
-      if (
-        data.authenticated
-      ) {
+      if (loggedIn) {
         await loadGuidance();
       }
     } catch {
@@ -203,6 +212,12 @@ export default function ExpertStudio() {
     setGuidance([]);
     setHistoryData(null);
   }
+
+  /*
+   * =====================================================
+   * LOAD METHODOLOGY
+   * =====================================================
+   */
 
   async function loadGuidance() {
     setLoading(true);
@@ -317,7 +332,9 @@ export default function ExpertStudio() {
   function closeHistory() {
     setHistoryData(null);
     setHistoryError("");
-    setHistoryLoading(false);
+    setHistoryLoading(
+      false
+    );
   }
 
   function compareValues(
@@ -328,12 +345,14 @@ export default function ExpertStudio() {
       Array.isArray(first) ||
       Array.isArray(second)
     ) {
-      return JSON.stringify(
-        first || []
-      ) ===
+      return (
+        JSON.stringify(
+          first || []
+        ) ===
         JSON.stringify(
           second || []
-        );
+        )
+      );
     }
 
     return (
@@ -361,34 +380,42 @@ export default function ExpertStudio() {
         "title",
         "Title",
       ],
+
       [
         "guidance",
         "Expert principle",
       ],
+
       [
         "category",
         "Category",
       ],
+
       [
         "subcategory",
         "Subcategory",
       ],
+
       [
         "tags",
         "Tags",
       ],
+
       [
         "priority",
         "Priority",
       ],
+
       [
         "rationale",
         "Rationale",
       ],
+
       [
         "appliesTo",
         "Applies to",
       ],
+
       [
         "status",
         "Status",
@@ -448,7 +475,9 @@ export default function ExpertStudio() {
     setForm(
       (current) => ({
         ...current,
-        [field]: value,
+
+        [field]:
+          value,
       })
     );
   }
@@ -519,6 +548,12 @@ export default function ExpertStudio() {
         "smooth",
     });
   }
+
+  /*
+   * =====================================================
+   * SAVE METHODOLOGY
+   * =====================================================
+   */
 
   async function saveGuidance(
     event
@@ -709,7 +744,7 @@ export default function ExpertStudio() {
 
   /*
    * =====================================================
-   * DASHBOARD
+   * DASHBOARD STATS
    * =====================================================
    */
 
@@ -741,6 +776,12 @@ export default function ExpertStudio() {
           ).length,
       };
     }, [guidance]);
+
+  /*
+   * =====================================================
+   * SEARCH / FILTER
+   * =====================================================
+   */
 
   const filteredGuidance =
     useMemo(() => {
@@ -787,6 +828,12 @@ export default function ExpertStudio() {
       statusFilter,
     ]);
 
+  /*
+   * =====================================================
+   * DISPLAY HELPERS
+   * =====================================================
+   */
+
   function formatDate(
     value
   ) {
@@ -822,7 +869,7 @@ export default function ExpertStudio() {
 
   /*
    * =====================================================
-   * AUTH UI
+   * SESSION CHECK
    * =====================================================
    */
 
@@ -832,8 +879,8 @@ export default function ExpertStudio() {
     return (
       <>
         <div className="loadingPage">
-          Checking Expert Studio
-          session...
+          Checking Expert
+          Studio session...
         </div>
 
         <GlobalStyle />
@@ -841,12 +888,18 @@ export default function ExpertStudio() {
     );
   }
 
+  /*
+   * =====================================================
+   * LOGIN
+   * =====================================================
+   */
+
   if (!authenticated) {
     return (
       <>
         <div className="loginPage">
           <div className="loginCard">
-            <div className="logo">
+            <div className="loginLogo">
               BRX
             </div>
 
@@ -901,6 +954,7 @@ export default function ExpertStudio() {
               )}
 
               <button
+                className="loginButton"
                 type="submit"
                 disabled={
                   loading ||
@@ -915,9 +969,10 @@ export default function ExpertStudio() {
 
             <div className="securityNote">
               Your admin key is
-              exchanged for a secure
-              HTTP-only session and
-              is not stored in the
+              exchanged for a
+              secure HTTP-only
+              session and is not
+              stored in the
               browser.
             </div>
 
@@ -925,7 +980,8 @@ export default function ExpertStudio() {
               href="/"
               className="homeLink"
             >
-              ← Return to BankRegX
+              ← Return to
+              BankRegX
             </a>
           </div>
         </div>
@@ -944,61 +1000,67 @@ export default function ExpertStudio() {
   return (
     <>
       <div className="page">
-        <header>
-          <div className="brandArea">
-            <div className="logo">
-              BRX
-            </div>
+        <BankRegXNav
+          current="studio"
+        />
 
-            <div>
-              <div className="brand">
-                BANKREGX
-              </div>
+        <main className="studioMain">
+          {/*
+           * =================================================
+           * HERO
+           * =================================================
+           */}
 
-              <div className="subbrand">
-                EXPERT STUDIO
-              </div>
-            </div>
-          </div>
-
-          <div className="headerActions">
-            <a href="/">
-              BankRegX
-            </a>
-
-            <a href="/expert-review">
-              Review Queue
-            </a>
-
-            <button
-              onClick={
-                logout
-              }
-            >
-              Sign out
-            </button>
-          </div>
-        </header>
-
-        <main>
           <section className="hero">
-            <div className="eyebrow">
-              GOVERNED
-              INTELLIGENCE
+            <div className="heroTop">
+              <div>
+                <div className="eyebrow">
+                  GOVERNED
+                  INTELLIGENCE
+                </div>
+
+                <h1>
+                  Expert
+                  methodology
+                </h1>
+
+                <p>
+                  Create, review,
+                  approve, version
+                  and retire the
+                  professional
+                  principles that
+                  inform BankRegX
+                  assessments.
+                </p>
+              </div>
+
+              <div className="sessionPanel">
+                <div className="sessionStatus">
+                  <span className="sessionDot" />
+
+                  SECURE ADMIN
+                  SESSION
+                </div>
+
+                <button
+                  type="button"
+                  className="signOutButton"
+                  onClick={
+                    logout
+                  }
+                >
+                  Sign out
+                </button>
+              </div>
             </div>
-
-            <h1>
-              Expert methodology
-            </h1>
-
-            <p>
-              Create, review,
-              approve, version and
-              retire the professional
-              principles that inform
-              BankRegX assessments.
-            </p>
           </section>
+
+          {/*
+           * =================================================
+           * STATS
+           * =================================================
+           */}
 
           <section className="stats">
             <Stat
@@ -1030,6 +1092,12 @@ export default function ExpertStudio() {
             />
           </section>
 
+          {/*
+           * =================================================
+           * EDITOR
+           * =================================================
+           */}
+
           <section className="editor">
             <div className="editorHeader">
               <div>
@@ -1044,10 +1112,22 @@ export default function ExpertStudio() {
                     ? "Update expert guidance"
                     : "Teach BankRegX"}
                 </h2>
+
+                <p className="sectionIntro">
+                  Create reusable
+                  professional
+                  methodology.
+                  Draft principles
+                  cannot influence
+                  BankRegX until
+                  explicitly
+                  approved.
+                </p>
               </div>
 
               {editingId && (
                 <button
+                  type="button"
                   className="ghostButton"
                   onClick={
                     resetForm
@@ -1104,7 +1184,7 @@ export default function ExpertStudio() {
                         .value
                     )
                   }
-                  placeholder="Describe the professional judgement BankRegX should apply..."
+                  placeholder="Describe the reusable professional judgement BankRegX should apply..."
                   required
                 />
               </div>
@@ -1262,8 +1342,8 @@ export default function ExpertStudio() {
                 />
 
                 <span className="hint">
-                  Separate tags with
-                  commas.
+                  Separate tags
+                  with commas.
                 </span>
               </div>
 
@@ -1295,7 +1375,7 @@ export default function ExpertStudio() {
                 </label>
 
                 <textarea
-                  className="rationale"
+                  className="rationaleInput"
                   value={
                     form.rationale
                   }
@@ -1334,6 +1414,12 @@ export default function ExpertStudio() {
             </form>
           </section>
 
+          {/*
+           * =================================================
+           * LIBRARY
+           * =================================================
+           */}
+
           <section className="library">
             <div className="libraryHeader">
               <div>
@@ -1343,8 +1429,17 @@ export default function ExpertStudio() {
                 </div>
 
                 <h2>
-                  Expert intelligence
+                  Expert
+                  intelligence
                 </h2>
+
+                <p className="sectionIntro">
+                  Governed
+                  methodology
+                  available to
+                  BankRegX
+                  assessments.
+                </p>
               </div>
 
               <div className="filters">
@@ -1403,8 +1498,8 @@ export default function ExpertStudio() {
             ) : filteredGuidance.length ===
               0 ? (
               <div className="empty">
-                No principles match
-                this view.
+                No principles
+                match this view.
               </div>
             ) : (
               <div className="guidanceList">
@@ -1571,6 +1666,7 @@ export default function ExpertStudio() {
                         {item.status !==
                           "approved" && (
                           <button
+                            className="approveButton"
                             onClick={() =>
                               changeStatus(
                                 item,
@@ -1592,7 +1688,8 @@ export default function ExpertStudio() {
                               )
                             }
                           >
-                            Move to draft
+                            Move to
+                            draft
                           </button>
                         )}
 
@@ -1618,7 +1715,24 @@ export default function ExpertStudio() {
             )}
           </section>
         </main>
+
+        <footer className="studioFooter">
+          <strong>
+            BANKREGX
+          </strong>
+
+          <span>
+            GOVERNED EXPERT
+            INTELLIGENCE
+          </span>
+        </footer>
       </div>
+
+      {/*
+       * ===================================================
+       * VERSION HISTORY MODAL
+       * ===================================================
+       */}
 
       {(historyLoading ||
         historyData ||
@@ -1669,8 +1783,9 @@ export default function ExpertStudio() {
 
             {historyLoading && (
               <div className="historyLoading">
-                Loading methodology
-                audit trail...
+                Loading
+                methodology audit
+                trail...
               </div>
             )}
 
@@ -1728,7 +1843,8 @@ export default function ExpertStudio() {
                       index
                     ) => {
                       const previousVersion =
-                        historyData.versions[
+                        historyData
+                          .versions[
                           index + 1
                         ];
 
@@ -1835,7 +1951,8 @@ export default function ExpertStudio() {
 
                           <div className="versionSection">
                             <div className="versionLabel">
-                              EXPERT PRINCIPLE
+                              EXPERT
+                              PRINCIPLE
                             </div>
 
                             <p>
@@ -1862,7 +1979,8 @@ export default function ExpertStudio() {
                           {Array.isArray(
                             version.tags
                           ) &&
-                            version.tags.length >
+                            version.tags
+                              .length >
                               0 && (
                               <div className="historyTags">
                                 {version.tags.map(
@@ -1913,13 +2031,16 @@ export default function ExpertStudio() {
                 </div>
 
                 <div className="auditNote">
-                  Previous versions are
-                  retained for audit
-                  purposes. Editing the
+                  Previous versions
+                  are retained for
+                  audit purposes.
+                  Editing the
                   current principle
-                  creates a new version
-                  rather than overwriting
-                  the historical record.
+                  creates a new
+                  version rather
+                  than overwriting
+                  the historical
+                  record.
                 </div>
               </>
             )}
@@ -1931,6 +2052,12 @@ export default function ExpertStudio() {
     </>
   );
 }
+
+/*
+ * =========================================================
+ * STAT
+ * =========================================================
+ */
 
 function Stat({
   label,
@@ -1949,19 +2076,28 @@ function Stat({
   );
 }
 
+/*
+ * =========================================================
+ * STYLES
+ * =========================================================
+ */
+
 function GlobalStyle() {
   return (
     <style jsx global>{`
       * {
-        box-sizing: border-box;
+        box-sizing:
+          border-box;
       }
 
       html,
       body {
         margin: 0;
         min-height: 100%;
-        background: #071014;
-        color: #edf5f3;
+        background:
+          #071014;
+        color:
+          #edf5f3;
         font-family:
           Inter,
           ui-sans-serif,
@@ -1976,7 +2112,12 @@ function GlobalStyle() {
         background:
           radial-gradient(
             circle at top left,
-            rgba(63, 139, 125, 0.12),
+            rgba(
+              63,
+              139,
+              125,
+              0.12
+            ),
             transparent 34%
           ),
           #071014;
@@ -1986,123 +2127,508 @@ function GlobalStyle() {
       input,
       textarea,
       select {
-        font: inherit;
+        font:
+          inherit;
       }
 
       button {
-        cursor: pointer;
+        cursor:
+          pointer;
+      }
+
+      .page {
+        min-height:
+          100vh;
+      }
+
+      /*
+       * LOGIN
+       */
+
+      .loadingPage,
+      .loginPage {
+        min-height:
+          100vh;
+        display:
+          flex;
+        align-items:
+          center;
+        justify-content:
+          center;
       }
 
       .loadingPage {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #77908b;
+        color:
+          #94aaa6;
       }
 
       .loginPage {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 30px;
+        padding:
+          30px;
       }
 
       .loginCard {
-        width: min(
-          440px,
-          100%
-        );
-        padding: 36px;
-        border: 1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.08
+        width:
+          min(
+            440px,
+            100%
           );
-        border-radius: 20px;
-        background:
-          rgba(
-            11,
-            24,
-            29,
-            0.85
-          );
-      }
-
-      .logo {
-        width: 44px;
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 12px;
-        border: 1px solid
-          rgba(
-            141,
-            213,
-            198,
-            0.28
-          );
-        color: #a7d9ce;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing:
-          0.08em;
-      }
-
-      .eyebrow {
-        margin-top: 20px;
-        color: #7db3a9;
-        font-size: 9px;
-        font-weight: 800;
-        letter-spacing:
-          0.17em;
-      }
-
-      .loginCard h1,
-      .hero h1 {
-        margin: 10px 0;
-        letter-spacing:
-          -0.04em;
-      }
-
-      .loginCard h1 {
-        font-size: 40px;
-      }
-
-      .loginCard p,
-      .hero p {
-        color: #819793;
-        line-height: 1.6;
-      }
-
-      label {
-        display: block;
-        margin: 16px 0 7px;
-        color: #96aaa7;
-        font-size: 11px;
-        font-weight: 650;
-      }
-
-      input,
-      textarea,
-      select {
-        width: 100%;
-        color: #e6efed;
-        background: #071317;
-        border: 1px solid
+        padding:
+          36px;
+        border:
+          1px solid
           rgba(
             255,
             255,
             255,
             0.09
           );
-        border-radius: 10px;
-        outline: none;
-        padding: 12px 13px;
+        border-radius:
+          20px;
+        background:
+          rgba(
+            11,
+            24,
+            29,
+            0.88
+          );
+      }
+
+      .loginLogo {
+        width:
+          44px;
+        height:
+          44px;
+        display:
+          flex;
+        align-items:
+          center;
+        justify-content:
+          center;
+        border-radius:
+          12px;
+        border:
+          1px solid
+          rgba(
+            141,
+            213,
+            198,
+            0.3
+          );
+        color:
+          #b6e2d8;
+        font-size:
+          11px;
+        font-weight:
+          800;
+        letter-spacing:
+          0.08em;
+      }
+
+      .loginCard h1 {
+        margin:
+          10px 0;
+        font-size:
+          40px;
+        letter-spacing:
+          -0.04em;
+      }
+
+      .loginCard p {
+        color:
+          #9db0ac;
+        line-height:
+          1.65;
+      }
+
+      .loginButton {
+        width:
+          100%;
+        margin-top:
+          18px;
+        border:
+          0;
+        border-radius:
+          10px;
+        padding:
+          12px 18px;
+        background:
+          #9bd4c8;
+        color:
+          #071311;
+        font-weight:
+          800;
+      }
+
+      .securityNote {
+        margin-top:
+          16px;
+        color:
+          #7f9792;
+        font-size:
+          10px;
+        line-height:
+          1.5;
+      }
+
+      .homeLink {
+        display:
+          inline-block;
+        margin-top:
+          22px;
+        color:
+          #a1c4bc;
+        text-decoration:
+          none;
+        font-size:
+          11px;
+      }
+
+      .error {
+        margin-top:
+          10px;
+        color:
+          #e0a7a7;
+        font-size:
+          11px;
+      }
+
+      /*
+       * PAGE
+       */
+
+      .studioMain {
+        width:
+          min(
+            1180px,
+            90vw
+          );
+        margin:
+          0 auto;
+      }
+
+      .hero {
+        padding:
+          72px 0 32px;
+      }
+
+      .heroTop {
+        display:
+          flex;
+        justify-content:
+          space-between;
+        align-items:
+          flex-start;
+        gap:
+          40px;
+      }
+
+      .hero h1 {
+        margin:
+          12px 0 14px;
+        font-size:
+          clamp(
+            44px,
+            5vw,
+            66px
+          );
+        line-height:
+          1;
+        letter-spacing:
+          -0.045em;
+        color:
+          #f1f6f5;
+      }
+
+      .hero p {
+        max-width:
+          700px;
+        color:
+          #9eb2ae;
+        line-height:
+          1.7;
+        font-size:
+          14px;
+      }
+
+      .eyebrow {
+        color:
+          #87c3b7;
+        font-size:
+          9px;
+        font-weight:
+          800;
+        letter-spacing:
+          0.17em;
+      }
+
+      /*
+       * SESSION
+       */
+
+      .sessionPanel {
+        display:
+          flex;
+        align-items:
+          center;
+        gap:
+          9px;
+        padding-top:
+          3px;
+      }
+
+      .sessionStatus {
+        display:
+          flex;
+        align-items:
+          center;
+        gap:
+          7px;
+        color:
+          #8eaaa4;
+        font-size:
+          8px;
+        font-weight:
+          700;
+        letter-spacing:
+          0.09em;
+      }
+
+      .sessionDot {
+        width:
+          6px;
+        height:
+          6px;
+        border-radius:
+          50%;
+        background:
+          #7fc4b4;
+        box-shadow:
+          0 0 10px
+          rgba(
+            127,
+            196,
+            180,
+            0.45
+          );
+      }
+
+      .signOutButton,
+      .ghostButton {
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.1
+          );
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.025
+          );
+        color:
+          #a8bbb7;
+        border-radius:
+          8px;
+        padding:
+          8px 11px;
+        font-size:
+          10px;
+      }
+
+      .signOutButton:hover,
+      .ghostButton:hover {
+        color:
+          #edf5f3;
+        border-color:
+          rgba(
+            157,
+            214,
+            202,
+            0.25
+          );
+      }
+
+      /*
+       * STATS
+       */
+
+      .stats {
+        display:
+          grid;
+        grid-template-columns:
+          repeat(
+            4,
+            1fr
+          );
+        gap:
+          10px;
+        margin:
+          18px 0;
+      }
+
+      .stat {
+        padding:
+          19px;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.075
+          );
+        border-radius:
+          12px;
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.026
+          );
+      }
+
+      .stat span {
+        display:
+          block;
+        color:
+          #82a09a;
+        font-size:
+          9px;
+        text-transform:
+          uppercase;
+        letter-spacing:
+          0.12em;
+      }
+
+      .stat strong {
+        display:
+          block;
+        margin-top:
+          9px;
+        color:
+          #eef5f3;
+        font-size:
+          29px;
+      }
+
+      /*
+       * PANELS
+       */
+
+      .editor,
+      .library {
+        margin-top:
+          18px;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.075
+          );
+        border-radius:
+          17px;
+        background:
+          rgba(
+            11,
+            24,
+            29,
+            0.74
+          );
+        padding:
+          29px;
+      }
+
+      .editorHeader,
+      .libraryHeader,
+      .cardTop,
+      .saveRow {
+        display:
+          flex;
+        justify-content:
+          space-between;
+        align-items:
+          flex-start;
+        gap:
+          20px;
+      }
+
+      .editor h2,
+      .library h2 {
+        margin:
+          7px 0 5px;
+        font-size:
+          26px;
+        letter-spacing:
+          -0.025em;
+      }
+
+      .sectionIntro {
+        margin:
+          7px 0 18px;
+        max-width:
+          580px;
+        color:
+          #8fa6a1;
+        font-size:
+          11px;
+        line-height:
+          1.6;
+      }
+
+      /*
+       * FORM
+       */
+
+      label {
+        display:
+          block;
+        margin:
+          16px 0 7px;
+        color:
+          #a5b8b4;
+        font-size:
+          11px;
+        font-weight:
+          650;
+      }
+
+      input,
+      textarea,
+      select {
+        width:
+          100%;
+        color:
+          #e7efed;
+        background:
+          #071317;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.1
+          );
+        border-radius:
+          10px;
+        outline:
+          none;
+        padding:
+          12px 13px;
+      }
+
+      input::placeholder,
+      textarea::placeholder {
+        color:
+          #657d78;
       }
 
       input:focus,
@@ -2113,330 +2639,208 @@ function GlobalStyle() {
             129,
             199,
             185,
-            0.5
+            0.52
+          );
+        box-shadow:
+          0 0 0 3px
+          rgba(
+            108,
+            176,
+            163,
+            0.04
           );
       }
 
       textarea {
-        min-height: 130px;
-        resize: vertical;
-        line-height: 1.6;
+        min-height:
+          130px;
+        resize:
+          vertical;
+        line-height:
+          1.6;
       }
 
-      textarea.rationale {
-        min-height: 90px;
-      }
-
-      .loginCard form button,
-      .primaryButton {
-        width: 100%;
-        margin-top: 18px;
-        border: 0;
-        border-radius: 10px;
-        padding: 12px 18px;
-        background: #9bd4c8;
-        color: #071311;
-        font-weight: 800;
-      }
-
-      button:disabled {
-        opacity: 0.45;
-        cursor: default;
-      }
-
-      .securityNote {
-        margin-top: 16px;
-        color: #617773;
-        font-size: 10px;
-        line-height: 1.5;
-      }
-
-      .homeLink {
-        display: inline-block;
-        margin-top: 22px;
-        color: #8db9b0;
-        text-decoration: none;
-        font-size: 11px;
-      }
-
-      .error {
-        margin-top: 10px;
-        color: #dda5a5;
-        font-size: 11px;
-      }
-
-      header {
-        height: 76px;
-        padding: 0 5vw;
-        display: flex;
-        align-items: center;
-        justify-content:
-          space-between;
-        border-bottom: 1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.06
-          );
-      }
-
-      .brandArea {
-        display: flex;
-        align-items: center;
-        gap: 13px;
-      }
-
-      .brand {
-        font-weight: 800;
-        font-size: 14px;
-        letter-spacing:
-          0.15em;
-      }
-
-      .subbrand {
-        margin-top: 3px;
-        color: #67817c;
-        font-size: 9px;
-        letter-spacing:
-          0.12em;
-      }
-
-      .headerActions {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .headerActions a,
-      .headerActions button,
-      .ghostButton {
-        color: #8ca29e;
-        background: transparent;
-        border: 1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.08
-          );
-        border-radius: 8px;
-        padding: 8px 11px;
-        text-decoration: none;
-        font-size: 10px;
-      }
-
-      main {
-        width: min(
-          1180px,
-          90vw
-        );
-        margin: 0 auto;
-      }
-
-      .hero {
-        padding:
-          70px 0 30px;
-      }
-
-      .hero h1 {
-        font-size:
-          clamp(
-            40px,
-            5vw,
-            66px
-          );
-      }
-
-      .hero p {
-        max-width: 720px;
-      }
-
-      .stats {
-        display: grid;
-        grid-template-columns:
-          repeat(
-            4,
-            1fr
-          );
-        gap: 10px;
-        margin: 20px 0;
-      }
-
-      .stat {
-        padding: 18px;
-        border: 1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.07
-          );
-        border-radius: 12px;
-        background:
-          rgba(
-            255,
-            255,
-            255,
-            0.025
-          );
-      }
-
-      .stat span {
-        display: block;
-        color: #708783;
-        font-size: 9px;
-        text-transform:
-          uppercase;
-        letter-spacing:
-          0.12em;
-      }
-
-      .stat strong {
-        display: block;
-        margin-top: 9px;
-        font-size: 28px;
-      }
-
-      .editor,
-      .library {
-        margin-top: 18px;
-        border: 1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.07
-          );
-        border-radius: 17px;
-        background:
-          rgba(
-            11,
-            24,
-            29,
-            0.72
-          );
-        padding: 28px;
-      }
-
-      .editorHeader,
-      .libraryHeader,
-      .cardTop,
-      .saveRow {
-        display: flex;
-        justify-content:
-          space-between;
-        align-items:
-          flex-start;
-        gap: 20px;
-      }
-
-      .editorHeader .eyebrow,
-      .libraryHeader .eyebrow {
-        margin-top: 0;
-      }
-
-      .editor h2,
-      .library h2 {
-        margin:
-          7px 0 20px;
-        font-size: 25px;
+      .rationaleInput {
+        min-height:
+          90px;
       }
 
       .grid {
-        display: grid;
+        display:
+          grid;
         grid-template-columns:
           repeat(
             2,
             1fr
           );
-        gap: 12px;
+        gap:
+          12px;
       }
 
       .hint {
-        display: block;
-        margin-top: 6px;
-        color: #58706c;
-        font-size: 9px;
+        display:
+          block;
+        margin-top:
+          6px;
+        color:
+          #6e8782;
+        font-size:
+          9px;
       }
 
       .saveRow {
-        margin-top: 20px;
-        align-items: center;
-      }
-
-      .saveRow .primaryButton {
-        width: auto;
-        margin: 0;
+        margin-top:
+          20px;
+        align-items:
+          center;
       }
 
       .saveMessage {
-        color: #8fb4ad;
-        font-size: 11px;
+        color:
+          #9fc0b9;
+        font-size:
+          11px;
       }
 
+      .primaryButton {
+        width:
+          auto;
+        margin:
+          0;
+        border:
+          0;
+        border-radius:
+          10px;
+        padding:
+          12px 18px;
+        background:
+          #9dd6ca;
+        color:
+          #071311;
+        font-weight:
+          800;
+        box-shadow:
+          0 8px 24px
+          rgba(
+            91,
+            161,
+            147,
+            0.14
+          );
+      }
+
+      .primaryButton:hover:not(
+        :disabled
+      ) {
+        transform:
+          translateY(
+            -1px
+          );
+      }
+
+      button:disabled {
+        opacity:
+          0.45;
+        cursor:
+          default;
+      }
+
+      /*
+       * LIBRARY
+       */
+
       .library {
-        margin-bottom: 80px;
+        margin-bottom:
+          80px;
       }
 
       .filters {
-        display: flex;
-        gap: 8px;
+        display:
+          flex;
+        gap:
+          8px;
       }
 
       .filters input {
-        width: 240px;
+        width:
+          250px;
       }
 
       .filters select {
-        width: 140px;
+        width:
+          145px;
       }
 
       .guidanceList {
-        display: grid;
-        gap: 11px;
+        display:
+          grid;
+        gap:
+          11px;
       }
 
       .guidanceCard {
-        border: 1px solid
+        border:
+          1px solid
           rgba(
             255,
             255,
             255,
-            0.065
+            0.07
           );
         background:
           rgba(
             4,
             13,
             16,
-            0.5
+            0.52
           );
-        border-radius: 13px;
-        padding: 20px;
+        border-radius:
+          13px;
+        padding:
+          21px;
+        transition:
+          150ms ease;
+      }
+
+      .guidanceCard:hover {
+        border-color:
+          rgba(
+            137,
+            200,
+            187,
+            0.17
+          );
       }
 
       .idRow {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        align-items: center;
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          6px;
+        align-items:
+          center;
       }
 
       .guidanceId {
-        color: #76938d;
+        color:
+          #84a29c;
         font-family:
           ui-monospace,
           monospace;
-        font-size: 9px;
+        font-size:
+          9px;
       }
 
       .status,
       .priority {
         border-radius:
           999px;
-        padding: 4px 7px;
-        font-size: 8px;
+        padding:
+          4px 7px;
+        font-size:
+          8px;
         text-transform:
           uppercase;
         letter-spacing:
@@ -2444,351 +2848,515 @@ function GlobalStyle() {
       }
 
       .status-approved {
-        color: #98d0b7;
+        color:
+          #a8d9bf;
         background:
           rgba(
             94,
             177,
             139,
-            0.09
+            0.1
           );
       }
 
       .status-draft {
-        color: #d5c28f;
+        color:
+          #dec98f;
         background:
           rgba(
             187,
             158,
             86,
-            0.08
+            0.09
           );
       }
 
       .status-deprecated {
-        color: #ba9393;
+        color:
+          #d1a0a0;
         background:
           rgba(
             170,
             95,
             95,
-            0.08
+            0.09
           );
       }
 
       .priority-critical {
-        color: #d59c9c;
+        color:
+          #e1a3a3;
       }
 
       .priority-high {
-        color: #d4bd88;
+        color:
+          #dec58d;
       }
 
       .priority-medium {
-        color: #8ca6a1;
+        color:
+          #9eb2ae;
       }
 
       .priority-low {
-        color: #657c78;
+        color:
+          #7a918d;
       }
 
       .guidanceCard h3 {
         margin:
           10px 0 5px;
-        font-size: 17px;
+        color:
+          #edf4f2;
+        font-size:
+          17px;
       }
 
       .category {
-        color: #607974;
-        font-size: 10px;
+        color:
+          #76918b;
+        font-size:
+          10px;
       }
 
       .version {
-        color: #617a75;
+        color:
+          #809b95;
         font-family:
           ui-monospace,
           monospace;
-        font-size: 10px;
+        font-size:
+          10px;
       }
 
       .principle {
-        color: #b4c5c2;
-        line-height: 1.65;
-        font-size: 13px;
+        color:
+          #bdcbc8;
+        line-height:
+          1.7;
+        font-size:
+          13px;
       }
 
       .rationaleText {
-        border-left: 2px solid
+        border-left:
+          2px solid
           rgba(
             124,
             179,
             168,
-            0.25
+            0.3
           );
-        padding-left: 13px;
-        color: #728a86;
-        font-size: 11px;
-        line-height: 1.6;
+        padding-left:
+          13px;
+        color:
+          #879d99;
+        font-size:
+          11px;
+        line-height:
+          1.65;
+      }
+
+      .rationaleText strong {
+        color:
+          #a9bbb7;
       }
 
       .tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        margin-top: 14px;
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          5px;
+        margin-top:
+          14px;
       }
 
       .tags span {
-        padding: 5px 7px;
-        border: 1px solid
+        padding:
+          5px 7px;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.065
+          );
+        border-radius:
+          999px;
+        color:
+          #819b95;
+        font-size:
+          9px;
+      }
+
+      .usage {
+        display:
+          grid;
+        grid-template-columns:
+          120px
+          1fr
+          1fr;
+        gap:
+          15px;
+        margin-top:
+          17px;
+        padding-top:
+          15px;
+        border-top:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.055
+          );
+      }
+
+      .usage span {
+        display:
+          block;
+        color:
+          #66807a;
+        font-size:
+          8px;
+        letter-spacing:
+          0.1em;
+      }
+
+      .usage strong {
+        display:
+          block;
+        margin-top:
+          4px;
+        color:
+          #8fa5a1;
+        font-size:
+          10px;
+        font-weight:
+          500;
+      }
+
+      /*
+       * CARD ACTIONS
+       */
+
+      .cardActions {
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          7px;
+        margin-top:
+          17px;
+      }
+
+      .cardActions button {
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.09
+          );
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.028
+          );
+        color:
+          #9cb1ad;
+        border-radius:
+          8px;
+        padding:
+          8px 11px;
+        font-size:
+          10px;
+      }
+
+      .cardActions button:hover {
+        color:
+          #e5eeec;
+        border-color:
+          rgba(
+            157,
+            214,
+            202,
+            0.22
+          );
+      }
+
+      .cardActions .historyButton {
+        color:
+          #acd1c8;
+        border-color:
+          rgba(
+            132,
+            200,
+            186,
+            0.21
+          );
+      }
+
+      .cardActions .approveButton {
+        color:
+          #acd6bf;
+      }
+
+      .cardActions .danger {
+        color:
+          #c99d9d;
+      }
+
+      .empty {
+        padding:
+          35px 0;
+        color:
+          #7d9691;
+        font-size:
+          12px;
+      }
+
+      /*
+       * FOOTER
+       */
+
+      .studioFooter {
+        border-top:
+          1px solid
           rgba(
             255,
             255,
             255,
             0.06
           );
-        border-radius:
-          999px;
-        color: #708985;
-        font-size: 9px;
-      }
-
-      .usage {
-        display: grid;
-        grid-template-columns:
-          120px 1fr 1fr;
-        gap: 15px;
-        margin-top: 17px;
-        padding-top: 15px;
-        border-top: 1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.05
-          );
-      }
-
-      .usage span {
-        display: block;
-        color: #4e6662;
-        font-size: 8px;
+        padding:
+          25px 5vw;
+        display:
+          flex;
+        align-items:
+          center;
+        justify-content:
+          center;
+        gap:
+          10px;
+        color:
+          #637b76;
+        font-size:
+          9px;
         letter-spacing:
-          0.1em;
+          0.12em;
       }
 
-      .usage strong {
-        display: block;
-        margin-top: 4px;
-        color: #819793;
-        font-size: 10px;
-        font-weight: 500;
-      }
-
-      .cardActions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 7px;
-        margin-top: 17px;
-      }
-
-      .cardActions button {
-        border: 1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.08
-          );
-        background:
-          rgba(
-            255,
-            255,
-            255,
-            0.025
-          );
-        color: #8da39f;
-        border-radius: 8px;
-        padding: 8px 11px;
-        font-size: 10px;
-      }
-
-      .cardActions .historyButton {
-        color: #a7cec6;
-        border-color:
-          rgba(
-            132,
-            200,
-            186,
-            0.2
-          );
-      }
-
-      .cardActions .danger {
-        color: #b58d8d;
-      }
-
-      .empty {
-        padding: 30px 0;
-        color: #647b77;
-        font-size: 12px;
+      .studioFooter strong {
+        color:
+          #819b95;
       }
 
       /*
-       * ===================================================
        * HISTORY MODAL
-       * ===================================================
        */
 
       .modalBackdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 100;
+        position:
+          fixed;
+        inset:
+          0;
+        z-index:
+          100;
         background:
           rgba(
             0,
             0,
             0,
-            0.72
+            0.74
           );
         backdrop-filter:
-          blur(7px);
-        padding: 32px;
-        overflow-y: auto;
+          blur(
+            7px
+          );
+        padding:
+          32px;
+        overflow-y:
+          auto;
       }
 
       .historyModal {
-        width: min(
-          900px,
-          100%
-        );
-        margin: 0 auto;
-        border: 1px solid
+        width:
+          min(
+            900px,
+            100%
+          );
+        margin:
+          0 auto;
+        border:
+          1px solid
           rgba(
             255,
             255,
             255,
-            0.09
+            0.1
           );
-        border-radius: 18px;
-        background: #09161a;
+        border-radius:
+          18px;
+        background:
+          #09161a;
         box-shadow:
           0 40px 100px
           rgba(
             0,
             0,
             0,
-            0.45
+            0.46
           );
-        padding: 28px;
+        padding:
+          28px;
       }
 
       .historyHeader {
-        display: flex;
+        display:
+          flex;
         justify-content:
           space-between;
-        gap: 20px;
+        gap:
+          20px;
         align-items:
           flex-start;
       }
 
       .historyHeader .eyebrow {
-        margin: 0;
+        margin:
+          0;
       }
 
       .historyHeader h2 {
-        margin: 7px 0 5px;
-        font-size: 27px;
+        margin:
+          7px 0 5px;
+        font-size:
+          27px;
       }
 
       .historyId {
-        color: #77928c;
+        color:
+          #87a29c;
         font-family:
           ui-monospace,
           monospace;
-        font-size: 10px;
+        font-size:
+          10px;
       }
 
       .closeButton {
-        width: 36px;
-        height: 36px;
-        border-radius: 9px;
-        border: 1px solid
+        width:
+          36px;
+        height:
+          36px;
+        border-radius:
+          9px;
+        border:
+          1px solid
           rgba(
             255,
             255,
             255,
-            0.08
+            0.1
           );
         background:
           rgba(
             255,
             255,
             255,
-            0.03
+            0.035
           );
-        color: #9bb0ac;
-        font-size: 20px;
+        color:
+          #a9bdb9;
+        font-size:
+          20px;
       }
 
       .historyLoading,
       .historyError {
-        margin-top: 25px;
-        padding: 25px;
-        color: #7d9691;
-        text-align: center;
+        margin-top:
+          25px;
+        padding:
+          25px;
+        color:
+          #879e99;
+        text-align:
+          center;
       }
 
       .historyError {
-        color: #d29c9c;
+        color:
+          #d9a4a4;
       }
 
       .historySummary {
-        margin-top: 25px;
-        display: grid;
+        margin-top:
+          25px;
+        display:
+          grid;
         grid-template-columns:
           150px
           150px
           1fr;
-        gap: 9px;
+        gap:
+          9px;
       }
 
       .historySummary > div {
-        padding: 15px;
-        border-radius: 10px;
+        padding:
+          15px;
+        border-radius:
+          10px;
         background:
           rgba(
             255,
             255,
             255,
-            0.025
+            0.028
           );
-        border: 1px solid
+        border:
+          1px solid
           rgba(
             255,
             255,
             255,
-            0.05
+            0.06
           );
       }
 
       .historySummary span {
-        display: block;
-        color: #566f69;
-        font-size: 8px;
+        display:
+          block;
+        color:
+          #69847d;
+        font-size:
+          8px;
         letter-spacing:
           0.11em;
       }
 
       .historySummary strong {
-        display: block;
-        margin-top: 7px;
-        color: #b8cac6;
-        font-size: 15px;
+        display:
+          block;
+        margin-top:
+          7px;
+        color:
+          #bdceca;
+        font-size:
+          15px;
       }
 
       .historySummary .documentId {
-        font-size: 9px;
+        font-size:
+          9px;
         font-family:
           ui-monospace,
           monospace;
@@ -2797,21 +3365,28 @@ function GlobalStyle() {
       }
 
       .timeline {
-        margin-top: 22px;
-        display: grid;
-        gap: 12px;
+        margin-top:
+          22px;
+        display:
+          grid;
+        gap:
+          12px;
       }
 
       .versionCard {
-        position: relative;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid
+        position:
+          relative;
+        padding:
+          20px;
+        border-radius:
+          12px;
+        border:
+          1px solid
           rgba(
             255,
             255,
             255,
-            0.065
+            0.07
           );
         background:
           rgba(
@@ -2828,97 +3403,122 @@ function GlobalStyle() {
             124,
             195,
             181,
-            0.25
+            0.27
           );
         background:
           rgba(
             67,
             126,
             114,
-            0.06
+            0.065
           );
       }
 
       .versionTop {
-        display: flex;
+        display:
+          flex;
         justify-content:
           space-between;
-        gap: 15px;
+        gap:
+          15px;
       }
 
       .versionIdentity {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        align-items: center;
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          6px;
+        align-items:
+          center;
       }
 
       .versionNumber {
-        color: #d7e5e2;
+        color:
+          #dce8e5;
         font-family:
           ui-monospace,
           monospace;
-        font-size: 11px;
-        font-weight: 800;
+        font-size:
+          11px;
+        font-weight:
+          800;
       }
 
       .currentBadge,
       .archivedBadge {
         border-radius:
           999px;
-        padding: 4px 7px;
-        font-size: 7px;
+        padding:
+          4px 7px;
+        font-size:
+          7px;
         letter-spacing:
           0.09em;
       }
 
       .currentBadge {
-        color: #9dd2c5;
+        color:
+          #a8d9cd;
         background:
           rgba(
             86,
             172,
             148,
-            0.09
+            0.1
           );
       }
 
       .archivedBadge {
-        color: #758b87;
+        color:
+          #829b96;
         background:
           rgba(
             255,
             255,
             255,
-            0.035
+            0.04
           );
       }
 
       .versionDate {
-        color: #566d68;
-        font-size: 9px;
+        color:
+          #718984;
+        font-size:
+          9px;
       }
 
       .versionCard h3 {
         margin:
           14px 0 5px;
-        font-size: 17px;
+        color:
+          #edf4f2;
+        font-size:
+          17px;
       }
 
       .historyCategory {
-        color: #637d77;
-        font-size: 9px;
+        color:
+          #738e88;
+        font-size:
+          9px;
       }
 
       .changeRow {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        margin-top: 13px;
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          5px;
+        margin-top:
+          13px;
       }
 
       .changeRow span {
-        padding: 5px 7px;
+        padding:
+          5px 7px;
         border-radius:
           999px;
         background:
@@ -2926,20 +3526,26 @@ function GlobalStyle() {
             127,
             178,
             168,
-            0.07
+            0.08
           );
-        color: #819d97;
-        font-size: 8px;
+        color:
+          #8fa9a3;
+        font-size:
+          8px;
       }
 
       .versionSection {
-        margin-top: 17px;
+        margin-top:
+          17px;
       }
 
       .versionLabel {
-        color: #526a65;
-        font-size: 8px;
-        font-weight: 800;
+        color:
+          #6c8780;
+        font-size:
+          8px;
+        font-weight:
+          800;
         letter-spacing:
           0.12em;
       }
@@ -2947,73 +3553,116 @@ function GlobalStyle() {
       .versionSection p {
         margin:
           7px 0 0;
-        color: #aabbb8;
-        line-height: 1.65;
-        font-size: 12px;
+        color:
+          #b1c2be;
+        line-height:
+          1.67;
+        font-size:
+          12px;
       }
 
       .historyTags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        margin-top: 15px;
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          5px;
+        margin-top:
+          15px;
       }
 
       .historyTags span {
-        padding: 5px 7px;
+        padding:
+          5px 7px;
         border-radius:
           999px;
-        border: 1px solid
+        border:
+          1px solid
           rgba(
             255,
             255,
             255,
-            0.055
+            0.06
           );
-        color: #708a84;
-        font-size: 8px;
+        color:
+          #819b95;
+        font-size:
+          8px;
       }
 
       .currentUsage,
       .archiveMeta {
-        margin-top: 17px;
-        padding-top: 13px;
-        border-top: 1px solid
+        margin-top:
+          17px;
+        padding-top:
+          13px;
+        border-top:
+          1px solid
           rgba(
             255,
             255,
             255,
-            0.045
+            0.05
           );
-        color: #5f7772;
-        font-size: 9px;
+        color:
+          #728b85;
+        font-size:
+          9px;
       }
 
       .auditNote {
-        margin-top: 18px;
-        padding: 14px;
-        border-left: 2px solid
+        margin-top:
+          18px;
+        padding:
+          14px;
+        border-left:
+          2px solid
           rgba(
             123,
             191,
             178,
-            0.3
+            0.32
           );
         background:
           rgba(
             255,
             255,
             255,
-            0.018
+            0.02
           );
-        color: #69827d;
-        font-size: 10px;
-        line-height: 1.6;
+        color:
+          #7e9892;
+        font-size:
+          10px;
+        line-height:
+          1.6;
       }
 
+      /*
+       * RESPONSIVE
+       */
+
       @media (
-        max-width: 760px
+        max-width:
+          800px
       ) {
+        .heroTop,
+        .editorHeader,
+        .libraryHeader,
+        .saveRow,
+        .versionTop {
+          flex-direction:
+            column;
+        }
+
+        .sessionPanel {
+          width:
+            100%;
+          justify-content:
+            space-between;
+        }
+
         .stats {
           grid-template-columns:
             repeat(
@@ -3029,35 +3678,47 @@ function GlobalStyle() {
             1fr;
         }
 
-        .libraryHeader,
-        .editorHeader,
-        .saveRow,
-        .versionTop {
-          flex-direction:
-            column;
-        }
-
         .filters {
-          width: 100%;
+          width:
+            100%;
           flex-direction:
             column;
         }
 
         .filters input,
         .filters select {
-          width: 100%;
+          width:
+            100%;
         }
 
         .saveRow .primaryButton {
-          width: 100%;
+          width:
+            100%;
         }
 
         .modalBackdrop {
-          padding: 12px;
+          padding:
+            12px;
         }
 
         .historyModal {
-          padding: 20px;
+          padding:
+            20px;
+        }
+      }
+
+      @media (
+        max-width:
+          500px
+      ) {
+        .studioMain {
+          width:
+            92vw;
+        }
+
+        .stats {
+          grid-template-columns:
+            1fr;
         }
       }
     `}</style>

@@ -1,75 +1,137 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import ReactMarkdown from "react-markdown";
+import BankRegXNav from "../components/BankRegXNav";
 
 export default function Home() {
-  const [query, setQuery] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [responseId, setResponseId] = useState(null);
+  const [
+    query,
+    setQuery,
+  ] = useState("");
 
-  const [expertGuidance, setExpertGuidance] =
-    useState([]);
+  const [
+    answer,
+    setAnswer,
+  ] = useState("");
 
-  const [detectedCategories, setDetectedCategories] =
-    useState([]);
+  const [
+    responseId,
+    setResponseId,
+  ] = useState(null);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [
+    expertGuidance,
+    setExpertGuidance,
+  ] = useState([]);
 
-  const [error, setError] =
-    useState("");
+  const [
+    detectedCategories,
+    setDetectedCategories,
+  ] = useState([]);
 
-  const [news, setNews] =
-    useState([]);
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
 
-  const [newsLoading, setNewsLoading] =
-    useState(true);
+  const [
+    error,
+    setError,
+  ] = useState("");
 
-  const [activeMode, setActiveMode] =
-    useState("ask");
+  const [
+    news,
+    setNews,
+  ] = useState([]);
 
-  const [feedbackStatus, setFeedbackStatus] =
-    useState("");
+  const [
+    newsLoading,
+    setNewsLoading,
+  ] = useState(true);
 
-  const [showCorrection, setShowCorrection] =
-    useState(false);
+  const [
+    activeMode,
+    setActiveMode,
+  ] = useState("ask");
 
-  const [correction, setCorrection] =
-    useState("");
+  const [
+    feedbackStatus,
+    setFeedbackStatus,
+  ] = useState("");
 
-  const [rationale, setRationale] =
-    useState("");
+  const [
+    showCorrection,
+    setShowCorrection,
+  ] = useState(false);
+
+  const [
+    correction,
+    setCorrection,
+  ] = useState("");
+
+  const [
+    rationale,
+    setRationale,
+  ] = useState("");
+
+  /*
+   * =====================================================
+   * ASSESSMENT MODES
+   * =====================================================
+   */
 
   const modes = [
     {
       id: "ask",
-      label: "Ask anything",
+
+      label:
+        "Ask anything",
+
       description:
         "Ask BankRegX about controls, audit, risk or regulation.",
+
       placeholder:
         "Ask BankRegX a controls, audit, risk or regulatory question...",
     },
+
     {
       id: "control",
-      label: "Assess a control",
+
+      label:
+        "Assess a control",
+
       description:
         "Evaluate control design using BankRegX expert methodology.",
+
       placeholder:
         "Describe the control you want BankRegX to assess...",
     },
+
     {
       id: "regulatory",
+
       label:
         "Analyse regulatory impact",
+
       description:
         "Assess what a regulatory development could mean for risks and controls.",
+
       placeholder:
         "Describe or paste the regulatory development you want BankRegX to analyse...",
     },
+
     {
       id: "finding",
-      label: "Review a finding",
+
+      label:
+        "Review a finding",
+
       description:
         "Challenge the logic, evidence and significance of an audit or controls finding.",
+
       placeholder:
         "Paste or describe the audit finding you want BankRegX to review...",
     },
@@ -78,8 +140,15 @@ export default function Home() {
   const currentMode =
     modes.find(
       (mode) =>
-        mode.id === activeMode
+        mode.id ===
+        activeMode
     ) || modes[0];
+
+  /*
+   * =====================================================
+   * LOAD REGULATORY INTELLIGENCE
+   * =====================================================
+   */
 
   useEffect(() => {
     loadNews();
@@ -98,6 +167,12 @@ export default function Home() {
         await response.json();
 
       let flattened = [];
+
+      /*
+       * The endpoint has historically returned
+       * regulatory feeds in several possible shapes.
+       * This keeps the homepage resilient.
+       */
 
       if (
         Array.isArray(data)
@@ -122,11 +197,6 @@ export default function Home() {
         typeof data ===
           "object"
       ) {
-        /*
-         * Regulatory-news APIs often return
-         * grouped feeds by regulator.
-         */
-
         Object.entries(
           data
         ).forEach(
@@ -144,6 +214,7 @@ export default function Home() {
                   flattened.push(
                     {
                       ...item,
+
                       source:
                         item.source ||
                         source,
@@ -172,6 +243,12 @@ export default function Home() {
     }
   }
 
+  /*
+   * =====================================================
+   * ASK BANKREGX
+   * =====================================================
+   */
+
   async function askBankRegX(
     customPrompt = null
   ) {
@@ -199,7 +276,8 @@ export default function Home() {
         await fetch(
           "/api/ask",
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
@@ -210,7 +288,9 @@ export default function Home() {
               JSON.stringify({
                 userId:
                   "bankregx-user",
-                query: prompt,
+
+                query:
+                  prompt,
               }),
           }
         );
@@ -269,6 +349,12 @@ export default function Home() {
     }
   }
 
+  /*
+   * =====================================================
+   * EXPERT FEEDBACK
+   * =====================================================
+   */
+
   async function submitFeedback(
     feedbackType
   ) {
@@ -297,7 +383,8 @@ export default function Home() {
         await fetch(
           "/api/feedback",
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
@@ -359,11 +446,11 @@ export default function Home() {
         "reject"
       ) {
         setFeedbackStatus(
-          "Assessment rejected and recorded for review."
+          "Assessment rejected and recorded for expert review."
         );
       } else {
         setFeedbackStatus(
-          "Correction saved. BankRegX can use this feedback in the expert-learning workflow."
+          "Correction saved and added to the Expert Review Queue."
         );
 
         setShowCorrection(
@@ -377,6 +464,12 @@ export default function Home() {
       );
     }
   }
+
+  /*
+   * =====================================================
+   * CHANGE ASSESSMENT MODE
+   * =====================================================
+   */
 
   function chooseMode(
     modeId
@@ -412,6 +505,12 @@ export default function Home() {
       ] || ""
     );
   }
+
+  /*
+   * =====================================================
+   * ANALYSE A REGULATORY NEWS ITEM
+   * =====================================================
+   */
 
   function analyseNewsItem(
     item
@@ -459,7 +558,19 @@ Consider:
     askBankRegX(
       prompt
     );
+
+    window.scrollTo({
+      top: 0,
+      behavior:
+        "smooth",
+    });
   }
+
+  /*
+   * =====================================================
+   * DISPLAY HELPERS
+   * =====================================================
+   */
 
   function displayCategory(
     category
@@ -493,35 +604,26 @@ Consider:
     }
   }
 
+  /*
+   * =====================================================
+   * PAGE
+   * =====================================================
+   */
+
   return (
     <>
       <div className="page">
-        <header className="topbar">
-          <div className="brandArea">
-            <div className="logo">
-              BRX
-            </div>
-
-            <div>
-              <div className="brand">
-                BANKREGX
-              </div>
-
-              <div className="tagline">
-                AI Control
-                Intelligence for
-                Banking
-              </div>
-            </div>
-          </div>
-
-          <div className="expertBadge">
-            <span className="expertDot" />
-            EXPERT INTELLIGENCE
-          </div>
-        </header>
+        <BankRegXNav
+          current="home"
+        />
 
         <main className="main">
+          {/*
+           * =================================================
+           * HERO
+           * =================================================
+           */}
+
           <section className="hero">
             <div className="eyebrow">
               CONTROL
@@ -544,6 +646,12 @@ Consider:
               emerging risk.
             </p>
           </section>
+
+          {/*
+           * =================================================
+           * ASSESSMENT MODES
+           * =================================================
+           */}
 
           <section className="modeGrid">
             {modes.map(
@@ -581,6 +689,12 @@ Consider:
             )}
           </section>
 
+          {/*
+           * =================================================
+           * QUESTION / ASSESSMENT INPUT
+           * =================================================
+           */}
+
           <section className="askPanel">
             <div className="askHeader">
               <div>
@@ -602,7 +716,9 @@ Consider:
             </div>
 
             <textarea
-              value={query}
+              value={
+                query
+              }
               onChange={(
                 event
               ) =>
@@ -622,9 +738,9 @@ Consider:
 
             <div className="askFooter">
               <div className="inputHint">
-                BankRegX will
-                distinguish facts,
-                unknowns,
+                BankRegX
+                distinguishes
+                facts, unknowns,
                 assumptions and
                 professional
                 judgement.
@@ -648,11 +764,23 @@ Consider:
             </div>
           </section>
 
+          {/*
+           * =================================================
+           * ERRORS
+           * =================================================
+           */}
+
           {error && (
             <section className="errorCard">
               {error}
             </section>
           )}
+
+          {/*
+           * =================================================
+           * LOADING STATE
+           * =================================================
+           */}
 
           {loading && (
             <section className="loadingCard">
@@ -666,7 +794,8 @@ Consider:
                   </div>
 
                   <div className="loadingSub">
-                    Applying evidence
+                    Applying
+                    evidence
                     discipline and
                     relevant Expert
                     Intelligence
@@ -693,6 +822,12 @@ Consider:
               </div>
             </section>
           )}
+
+          {/*
+           * =================================================
+           * ANSWER
+           * =================================================
+           */}
 
           {answer &&
             !loading && (
@@ -744,6 +879,12 @@ Consider:
                   </ReactMarkdown>
                 </div>
 
+                {/*
+                 * =============================================
+                 * EXPLAINABLE EXPERT METHODOLOGY
+                 * =============================================
+                 */}
+
                 {expertGuidance.length >
                   0 && (
                   <div className="explainPanel">
@@ -755,9 +896,9 @@ Consider:
                         </div>
 
                         <h3>
-                          Why BankRegX
-                          reached this
-                          conclusion
+                          Methodology
+                          informing this
+                          assessment
                         </h3>
                       </div>
 
@@ -774,9 +915,9 @@ Consider:
                       BankRegX
                       retrieved the
                       following approved
-                      methodology as
-                      relevant to this
-                      assessment.
+                      expert methodology
+                      as relevant to
+                      this assessment.
                     </p>
 
                     <div className="guidanceList">
@@ -821,6 +962,12 @@ Consider:
                               {displayCategory(
                                 item.category
                               )}
+
+                              {item.subcategory
+                                ? ` · ${displayCategory(
+                                    item.subcategory
+                                  )}`
+                                : ""}
                             </div>
                           </div>
                         )
@@ -828,8 +975,9 @@ Consider:
                     </div>
 
                     <div className="explainNote">
-                      Expert methodology
-                      supports BankRegX
+                      Expert
+                      methodology
+                      informs BankRegX
                       professional
                       judgement. It is
                       not presented as
@@ -839,6 +987,12 @@ Consider:
                     </div>
                   </div>
                 )}
+
+                {/*
+                 * =============================================
+                 * EXPERT REVIEW
+                 * =============================================
+                 */}
 
                 <div className="feedbackPanel">
                   <div className="feedbackHeader">
@@ -993,6 +1147,12 @@ Consider:
               </section>
             )}
 
+          {/*
+           * =================================================
+           * REGULATORY INTELLIGENCE
+           * =================================================
+           */}
+
           <section className="newsSection">
             <div className="newsHeader">
               <div>
@@ -1015,15 +1175,25 @@ Consider:
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="refreshButton"
-                onClick={
-                  loadNews
-                }
-              >
-                Refresh
-              </button>
+              <div className="newsHeaderActions">
+                <a
+                  href="/regulatory-news"
+                  className="viewAllLink"
+                >
+                  View full
+                  intelligence
+                </a>
+
+                <button
+                  type="button"
+                  className="refreshButton"
+                  onClick={
+                    loadNews
+                  }
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
 
             {newsLoading ? (
@@ -1087,6 +1257,7 @@ Consider:
                               0,
                               220
                             )}
+
                             {description.length >
                             220
                               ? "..."
@@ -1128,6 +1299,12 @@ Consider:
             )}
           </section>
 
+          {/*
+           * =================================================
+           * BANKREGX MODEL
+           * =================================================
+           */}
+
           <section className="foundation">
             <div className="foundationIntro">
               <div className="sectionEyebrow">
@@ -1137,9 +1314,21 @@ Consider:
               </div>
 
               <h2>
-                From AI assistant to
-                control intelligence
+                From AI assistant
+                to control
+                intelligence
               </h2>
+
+              <p>
+                BankRegX combines
+                AI analysis with
+                governed expert
+                methodology,
+                regulatory
+                intelligence and a
+                human-controlled
+                learning process.
+              </p>
             </div>
 
             <div className="foundationGrid">
@@ -1147,12 +1336,15 @@ Consider:
                 <span>
                   01
                 </span>
+
                 <h3>
                   Ask
                 </h3>
+
                 <p>
-                  Interrogate controls,
-                  audit, risk and
+                  Interrogate
+                  controls, audit,
+                  risk and
                   regulation.
                 </p>
               </div>
@@ -1161,9 +1353,11 @@ Consider:
                 <span>
                   02
                 </span>
+
                 <h3>
                   Assess
                 </h3>
+
                 <p>
                   Apply disciplined
                   methodology to
@@ -1176,13 +1370,15 @@ Consider:
                 <span>
                   03
                 </span>
+
                 <h3>
                   Monitor
                 </h3>
+
                 <p>
                   Connect regulatory
-                  developments to risks
-                  and controls.
+                  developments to
+                  risks and controls.
                 </p>
               </div>
 
@@ -1190,9 +1386,11 @@ Consider:
                 <span>
                   04
                 </span>
+
                 <h3>
                   Learn
                 </h3>
+
                 <p>
                   Capture expert
                   review and build
@@ -1205,18 +1403,33 @@ Consider:
         </main>
 
         <footer>
-          BANKREGX · AI CONTROL
-          INTELLIGENCE FOR BANKING
+          <div>
+            BANKREGX
+          </div>
+
+          <span>
+            AI CONTROL
+            INTELLIGENCE FOR
+            BANKING
+          </span>
         </footer>
       </div>
 
+      {/*
+       * ===================================================
+       * PAGE STYLES
+       * ===================================================
+       */}
+
       <style jsx global>{`
         * {
-          box-sizing: border-box;
+          box-sizing:
+            border-box;
         }
 
         html {
-          background: #071014;
+          background:
+            #071014;
         }
 
         body {
@@ -1228,12 +1441,12 @@ Consider:
                 42,
                 110,
                 110,
-                0.16
+                0.14
               ),
               transparent 34%
             ),
             #071014;
-          color: #ecf4f3;
+          color: #edf5f3;
           font-family:
             Inter,
             ui-sans-serif,
@@ -1250,156 +1463,46 @@ Consider:
         }
 
         button {
-          cursor: pointer;
+          cursor:
+            pointer;
         }
 
         .page {
-          min-height: 100vh;
-        }
-
-        .topbar {
-          min-height: 78px;
-          padding: 0 5vw;
-          display: flex;
-          align-items: center;
-          justify-content:
-            space-between;
-          border-bottom: 1px
-            solid
-            rgba(
-              255,
-              255,
-              255,
-              0.07
-            );
-          background:
-            rgba(
-              7,
-              16,
-              20,
-              0.86
-            );
-          backdrop-filter:
-            blur(18px);
-          position: sticky;
-          top: 0;
-          z-index: 10;
-        }
-
-        .brandArea {
-          display: flex;
-          gap: 14px;
-          align-items: center;
-        }
-
-        .logo {
-          width: 42px;
-          height: 42px;
-          border: 1px
-            solid
-            rgba(
-              151,
-              225,
-              210,
-              0.38
-            );
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content:
-            center;
-          color: #b9e6dc;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing:
-            0.08em;
-          background:
-            rgba(
-              72,
-              145,
-              132,
-              0.1
-            );
-        }
-
-        .brand {
-          font-size: 15px;
-          font-weight: 800;
-          letter-spacing:
-            0.16em;
-        }
-
-        .tagline {
-          margin-top: 3px;
-          font-size: 11px;
-          color: #829795;
-        }
-
-        .expertBadge {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 10px;
-          letter-spacing:
-            0.12em;
-          color: #b9d7d2;
-          border: 1px
-            solid
-            rgba(
-              142,
-              205,
-              192,
-              0.2
-            );
-          padding: 9px 12px;
-          border-radius:
-            999px;
-          background:
-            rgba(
-              100,
-              171,
-              158,
-              0.06
-            );
-        }
-
-        .expertDot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background:
-            #83c8b9;
-          box-shadow:
-            0 0 12px
-            rgba(
-              131,
-              200,
-              185,
-              0.6
-            );
+          min-height:
+            100vh;
         }
 
         .main {
-          width: min(
-            1180px,
-            90vw
-          );
-          margin: 0 auto;
+          width:
+            min(
+              1180px,
+              90vw
+            );
+          margin:
+            0 auto;
         }
+
+        /*
+         * HERO
+         */
 
         .hero {
           padding:
-            90px 0 45px;
-          max-width: 800px;
+            88px 0 45px;
+          max-width:
+            820px;
         }
 
         .eyebrow,
         .sectionEyebrow {
-          font-size: 10px;
-          font-weight: 800;
+          font-size:
+            10px;
+          font-weight:
+            800;
           letter-spacing:
             0.17em;
-          color: #82bdb2;
+          color:
+            #87c2b7;
           text-transform:
             uppercase;
         }
@@ -1407,42 +1510,62 @@ Consider:
         .hero h1 {
           font-size:
             clamp(
-              42px,
+              44px,
               6vw,
               74px
             );
-          line-height: 0.98;
+          line-height:
+            0.98;
           letter-spacing:
             -0.045em;
-          margin: 16px 0 20px;
-          font-weight: 640;
+          margin:
+            17px 0 22px;
+          font-weight:
+            650;
+          color:
+            #f1f6f5;
         }
 
         .heroText {
-          max-width: 680px;
-          color: #93a9a6;
-          line-height: 1.7;
-          font-size: 16px;
+          max-width:
+            700px;
+          color:
+            #9aafab;
+          line-height:
+            1.7;
+          font-size:
+            16px;
         }
 
+        /*
+         * MODES
+         */
+
         .modeGrid {
-          display: grid;
+          display:
+            grid;
           grid-template-columns:
             repeat(
               4,
               1fr
             );
-          gap: 12px;
-          margin-bottom: 18px;
+          gap:
+            12px;
+          margin-bottom:
+            18px;
         }
 
         .modeCard {
-          text-align: left;
-          padding: 20px;
-          min-height: 118px;
-          border-radius: 15px;
-          border: 1px
-            solid
+          text-align:
+            left;
+          padding:
+            20px;
+          min-height:
+            118px;
+          border-radius:
+            15px;
+          border:
+            1px solid
             rgba(
               255,
               255,
@@ -1456,7 +1579,8 @@ Consider:
               255,
               0.025
             );
-          color: inherit;
+          color:
+            inherit;
           transition:
             160ms ease;
         }
@@ -1467,7 +1591,14 @@ Consider:
               132,
               194,
               181,
-              0.3
+              0.32
+            );
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.035
             );
           transform:
             translateY(
@@ -1490,7 +1621,7 @@ Consider:
                 86,
                 156,
                 142,
-                0.13
+                0.14
               ),
               rgba(
                 255,
@@ -1502,35 +1633,48 @@ Consider:
         }
 
         .modeLabel {
-          font-weight: 700;
-          font-size: 14px;
-          margin-bottom: 9px;
+          font-weight:
+            720;
+          font-size:
+            14px;
+          margin-bottom:
+            9px;
+          color:
+            #e9f1ef;
         }
 
         .modeDescription {
-          color: #819794;
-          font-size: 12px;
-          line-height: 1.5;
+          color:
+            #8fa5a1;
+          font-size:
+            12px;
+          line-height:
+            1.55;
         }
+
+        /*
+         * MAIN PANELS
+         */
 
         .askPanel,
         .answerCard,
         .loadingCard {
-          border: 1px
-            solid
+          border:
+            1px solid
             rgba(
               255,
               255,
               255,
               0.08
             );
-          border-radius: 18px;
+          border-radius:
+            18px;
           background:
             rgba(
               11,
               24,
               29,
-              0.77
+              0.79
             );
           box-shadow:
             0 28px 80px
@@ -1543,7 +1687,8 @@ Consider:
         }
 
         .askPanel {
-          padding: 26px;
+          padding:
+            27px;
         }
 
         .askHeader,
@@ -1551,45 +1696,61 @@ Consider:
         .feedbackHeader,
         .explainHeader,
         .newsHeader {
-          display: flex;
+          display:
+            flex;
           justify-content:
             space-between;
-          gap: 20px;
+          gap:
+            20px;
           align-items:
             flex-start;
         }
 
         .askTitle {
-          margin-top: 6px;
-          font-size: 19px;
-          font-weight: 650;
+          margin-top:
+            6px;
+          font-size:
+            19px;
+          font-weight:
+            670;
         }
 
         .shortcut {
-          color: #647b78;
-          font-size: 11px;
+          color:
+            #718985;
+          font-size:
+            10px;
         }
 
         .queryInput {
-          margin-top: 22px;
-          width: 100%;
-          min-height: 160px;
-          resize: vertical;
-          padding: 20px;
-          outline: none;
-          border-radius: 13px;
-          border: 1px
-            solid
+          margin-top:
+            22px;
+          width:
+            100%;
+          min-height:
+            160px;
+          resize:
+            vertical;
+          padding:
+            20px;
+          outline:
+            none;
+          border-radius:
+            13px;
+          border:
+            1px solid
             rgba(
               255,
               255,
               255,
-              0.08
+              0.09
             );
           background:
             #081317;
-          color: #eaf2f1;
-          line-height: 1.6;
+          color:
+            #eaf2f1;
+          line-height:
+            1.65;
         }
 
         .queryInput:focus {
@@ -1598,50 +1759,107 @@ Consider:
               121,
               191,
               177,
-              0.48
+              0.5
+            );
+          box-shadow:
+            0 0 0 3px
+            rgba(
+              111,
+              182,
+              168,
+              0.04
             );
         }
 
         .queryInput::placeholder {
-          color: #536966;
+          color:
+            #617a75;
         }
 
         .askFooter {
-          display: flex;
-          align-items: center;
+          display:
+            flex;
+          align-items:
+            center;
           justify-content:
             space-between;
-          gap: 20px;
-          margin-top: 16px;
+          gap:
+            20px;
+          margin-top:
+            16px;
         }
 
         .inputHint {
-          color: #657c79;
-          font-size: 11px;
-          line-height: 1.5;
+          color:
+            #7f9792;
+          font-size:
+            11px;
+          line-height:
+            1.5;
         }
+
+        /*
+         * BUTTONS
+         */
 
         .primaryButton,
         .secondaryButton {
-          border: 0;
-          border-radius: 10px;
-          padding: 12px 18px;
-          font-weight: 700;
+          border:
+            0;
+          border-radius:
+            10px;
+          padding:
+            12px 18px;
+          font-weight:
+            750;
         }
 
         .primaryButton {
-          background: #9dd6ca;
-          color: #071311;
+          background:
+            #9dd6ca;
+          color:
+            #071311;
+          box-shadow:
+            0 8px 24px
+            rgba(
+              93,
+              160,
+              146,
+              0.13
+            );
+          transition:
+            150ms ease;
+        }
+
+        .primaryButton:hover:not(
+          :disabled
+        ) {
+          transform:
+            translateY(
+              -1px
+            );
+          box-shadow:
+            0 10px 28px
+            rgba(
+              93,
+              160,
+              146,
+              0.2
+            );
         }
 
         .primaryButton:disabled {
-          opacity: 0.45;
-          cursor: default;
+          opacity:
+            0.45;
+          cursor:
+            default;
         }
 
         .primaryButton.small {
-          padding: 10px 14px;
-          font-size: 12px;
+          padding:
+            10px 14px;
+          font-size:
+            12px;
         }
 
         .secondaryButton {
@@ -1652,66 +1870,94 @@ Consider:
               255,
               0.06
             );
-          color: #b8c8c6;
+          color:
+            #b8c8c6;
         }
 
+        /*
+         * LOADING
+         */
+
         .loadingCard {
-          margin-top: 18px;
-          padding: 28px;
+          margin-top:
+            18px;
+          padding:
+            28px;
         }
 
         .loadingTop {
-          display: flex;
-          gap: 14px;
-          align-items: center;
+          display:
+            flex;
+          gap:
+            14px;
+          align-items:
+            center;
         }
 
         .loadingPulse {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          background: #8ccbbe;
+          width:
+            12px;
+          height:
+            12px;
+          border-radius:
+            50%;
+          background:
+            #8ccbbe;
           animation:
-            pulse 1.2s
-            infinite ease-in-out;
+            pulse
+            1.2s
+            infinite
+            ease-in-out;
         }
 
         @keyframes pulse {
           0%,
           100% {
-            opacity: 0.3;
+            opacity:
+              0.3;
           }
 
           50% {
-            opacity: 1;
+            opacity:
+              1;
           }
         }
 
         .loadingTitle {
-          font-weight: 700;
+          font-weight:
+            700;
         }
 
         .loadingSub {
-          margin-top: 4px;
-          font-size: 12px;
-          color: #79908d;
+          margin-top:
+            4px;
+          font-size:
+            12px;
+          color:
+            #809794;
         }
 
         .loadingGrid {
-          display: grid;
+          display:
+            grid;
           grid-template-columns:
             repeat(
               4,
               1fr
             );
-          gap: 8px;
-          margin-top: 22px;
+          gap:
+            8px;
+          margin-top:
+            22px;
         }
 
         .loadingGrid span {
-          padding: 11px;
-          text-align: center;
-          border-radius: 8px;
+          padding:
+            11px;
+          text-align:
+            center;
+          border-radius:
+            8px;
           background:
             rgba(
               255,
@@ -1719,15 +1965,23 @@ Consider:
               255,
               0.03
             );
-          color: #6f8783;
-          font-size: 11px;
+          color:
+            #78918c;
+          font-size:
+            11px;
         }
 
+        /*
+         * ERROR
+         */
+
         .errorCard {
-          margin-top: 18px;
-          padding: 16px 18px;
-          border: 1px
-            solid
+          margin-top:
+            18px;
+          padding:
+            16px 18px;
+          border:
+            1px solid
             rgba(
               216,
               111,
@@ -1741,19 +1995,28 @@ Consider:
               66,
               0.08
             );
-          border-radius: 12px;
-          color: #efb3b3;
+          border-radius:
+            12px;
+          color:
+            #efb3b3;
         }
 
+        /*
+         * ANSWER
+         */
+
         .answerCard {
-          margin-top: 18px;
-          padding: 32px;
+          margin-top:
+            18px;
+          padding:
+            32px;
         }
 
         .answerHeader {
-          padding-bottom: 24px;
-          border-bottom: 1px
-            solid
+          padding-bottom:
+            24px;
+          border-bottom:
+            1px solid
             rgba(
               255,
               255,
@@ -1765,19 +2028,23 @@ Consider:
         .answerHeader h2,
         .newsHeader h2,
         .foundation h2 {
-          margin: 7px 0 0;
-          font-size: 27px;
+          margin:
+            7px 0 0;
+          font-size:
+            27px;
           letter-spacing:
             -0.025em;
         }
 
         .methodBadge {
-          color: #abd9cf;
-          font-size: 9px;
+          color:
+            #b3ddd4;
+          font-size:
+            9px;
           letter-spacing:
             0.12em;
-          border: 1px
-            solid
+          border:
+            1px solid
             rgba(
               137,
               202,
@@ -1791,23 +2058,30 @@ Consider:
               189,
               0.06
             );
-          padding: 9px 11px;
+          padding:
+            9px 11px;
           border-radius:
             999px;
         }
 
         .categoryRow {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 7px;
-          margin: 20px 0 0;
+          display:
+            flex;
+          flex-wrap:
+            wrap;
+          gap:
+            7px;
+          margin:
+            20px 0 0;
         }
 
         .categoryChip {
-          font-size: 10px;
-          color: #8eaaa6;
-          border: 1px
-            solid
+          font-size:
+            10px;
+          color:
+            #9bb1ad;
+          border:
+            1px solid
             rgba(
               255,
               255,
@@ -1816,92 +2090,124 @@ Consider:
             );
           border-radius:
             999px;
-          padding: 6px 9px;
+          padding:
+            6px 9px;
         }
 
+        /*
+         * MARKDOWN
+         */
+
         .markdown {
-          color: #c5d3d1;
-          line-height: 1.75;
-          font-size: 14px;
-          padding: 20px 0;
+          color:
+            #c9d6d4;
+          line-height:
+            1.77;
+          font-size:
+            14px;
+          padding:
+            20px 0;
         }
 
         .markdown h1,
         .markdown h2,
         .markdown h3,
         .markdown h4 {
-          color: #f0f6f5;
-          line-height: 1.25;
+          color:
+            #f0f6f5;
+          line-height:
+            1.25;
           letter-spacing:
             -0.018em;
         }
 
         .markdown h3 {
-          font-size: 18px;
+          font-size:
+            18px;
           margin:
             30px 0 10px;
-          padding-top: 5px;
+          padding-top:
+            5px;
         }
 
         .markdown p {
-          margin: 10px 0;
+          margin:
+            10px 0;
         }
 
         .markdown ul,
         .markdown ol {
-          padding-left: 22px;
+          padding-left:
+            22px;
         }
 
         .markdown li {
-          margin: 7px 0;
+          margin:
+            7px 0;
         }
 
         .markdown strong {
-          color: #edf5f3;
-          font-weight: 700;
+          color:
+            #edf5f3;
+          font-weight:
+            700;
         }
 
         .markdown blockquote {
-          margin: 18px 0;
+          margin:
+            18px 0;
           padding:
             4px 0 4px
             18px;
-          border-left: 2px
-            solid #78aa9f;
-          color: #91aaa6;
+          border-left:
+            2px solid
+            #78aa9f;
+          color:
+            #9bb0ac;
         }
 
+        /*
+         * EXPLAINABLE INTELLIGENCE
+         */
+
         .explainPanel {
-          margin-top: 12px;
-          border-radius: 14px;
-          border: 1px
-            solid
+          margin-top:
+            12px;
+          border-radius:
+            14px;
+          border:
+            1px solid
             rgba(
               130,
               194,
               181,
-              0.15
+              0.17
             );
           background:
             rgba(
               73,
               126,
               116,
-              0.055
+              0.06
             );
-          padding: 23px;
+          padding:
+            23px;
         }
 
         .explainHeader h3 {
-          margin: 6px 0 0;
-          font-size: 18px;
+          margin:
+            6px 0 0;
+          font-size:
+            18px;
         }
 
         .guidanceCount {
-          font-size: 10px;
-          color: #91aaa6;
-          border: 1px
-            solid
+          font-size:
+            10px;
+          color:
+            #a0b5b1;
+          border:
+            1px solid
             rgba(
               255,
               255,
@@ -1910,20 +2216,27 @@ Consider:
             );
           border-radius:
             999px;
-          padding: 7px 9px;
+          padding:
+            7px 9px;
         }
 
         .explainIntro,
         .explainNote {
-          color: #7e9692;
-          line-height: 1.6;
-          font-size: 12px;
+          color:
+            #8fa6a1;
+          line-height:
+            1.6;
+          font-size:
+            12px;
         }
 
         .guidanceList {
-          display: grid;
-          gap: 9px;
-          margin: 17px 0;
+          display:
+            grid;
+          gap:
+            9px;
+          margin:
+            17px 0;
         }
 
         .guidanceItem {
@@ -1932,25 +2245,29 @@ Consider:
               5,
               15,
               18,
-              0.55
+              0.56
             );
-          border: 1px
-            solid
+          border:
+            1px solid
             rgba(
               255,
               255,
               255,
-              0.06
+              0.065
             );
-          border-radius: 10px;
-          padding: 14px;
+          border-radius:
+            10px;
+          padding:
+            14px;
         }
 
         .guidanceMeta {
-          display: flex;
+          display:
+            flex;
           justify-content:
             space-between;
-          gap: 8px;
+          gap:
+            8px;
         }
 
         .guidanceId {
@@ -1959,44 +2276,64 @@ Consider:
             SFMono-Regular,
             Menlo,
             monospace;
-          font-size: 9px;
-          color: #75908b;
+          font-size:
+            9px;
+          color:
+            #809a95;
         }
 
         .priority {
-          font-size: 8px;
-          font-weight: 800;
+          font-size:
+            8px;
+          font-weight:
+            800;
           letter-spacing:
             0.08em;
-          color: #78908c;
+          color:
+            #78908c;
         }
 
         .priority-critical {
-          color: #d9a4a4;
+          color:
+            #e2a7a7;
         }
 
         .priority-high {
-          color: #d7c398;
+          color:
+            #dfc790;
         }
 
         .guidanceTitle {
-          margin-top: 8px;
-          font-size: 13px;
-          font-weight: 700;
-          color: #dce8e6;
+          margin-top:
+            8px;
+          font-size:
+            13px;
+          font-weight:
+            700;
+          color:
+            #dce8e6;
         }
 
         .guidanceCategory {
-          margin-top: 4px;
-          font-size: 10px;
-          color: #718985;
+          margin-top:
+            4px;
+          font-size:
+            10px;
+          color:
+            #7b948f;
         }
 
+        /*
+         * FEEDBACK
+         */
+
         .feedbackPanel {
-          margin-top: 26px;
-          padding-top: 24px;
-          border-top: 1px
-            solid
+          margin-top:
+            26px;
+          padding-top:
+            24px;
+          border-top:
+            1px solid
             rgba(
               255,
               255,
@@ -2006,35 +2343,48 @@ Consider:
         }
 
         .feedbackTitle {
-          font-size: 14px;
-          font-weight: 700;
+          font-size:
+            14px;
+          font-weight:
+            700;
         }
 
         .feedbackSub {
-          font-size: 11px;
-          color: #718985;
-          margin-top: 4px;
+          font-size:
+            11px;
+          color:
+            #809994;
+          margin-top:
+            4px;
         }
 
         .responseRef {
-          font-size: 9px;
+          font-size:
+            9px;
           letter-spacing:
             0.08em;
-          color: #709089;
+          color:
+            #7d9993;
         }
 
         .feedbackButtons {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 9px;
-          margin-top: 16px;
+          display:
+            flex;
+          flex-wrap:
+            wrap;
+          gap:
+            9px;
+          margin-top:
+            16px;
         }
 
         .feedbackButton {
-          padding: 9px 13px;
-          border-radius: 9px;
-          border: 1px
-            solid
+          padding:
+            9px 13px;
+          border-radius:
+            9px;
+          border:
+            1px solid
             rgba(
               255,
               255,
@@ -2048,8 +2398,10 @@ Consider:
               255,
               0.03
             );
-          color: #aebfbc;
-          font-size: 11px;
+          color:
+            #b4c5c2;
+          font-size:
+            11px;
         }
 
         .approve:hover {
@@ -2058,8 +2410,10 @@ Consider:
               107,
               197,
               164,
-              0.42
+              0.45
             );
+          color:
+            #b4dec9;
         }
 
         .correct:hover {
@@ -2068,8 +2422,10 @@ Consider:
               199,
               174,
               105,
-              0.42
+              0.45
             );
+          color:
+            #e2cf99;
         }
 
         .reject:hover {
@@ -2078,14 +2434,19 @@ Consider:
               209,
               113,
               113,
-              0.42
+              0.45
             );
+          color:
+            #e3a5a5;
         }
 
         .correctionBox {
-          margin-top: 16px;
-          padding: 18px;
-          border-radius: 12px;
+          margin-top:
+            16px;
+          padding:
+            18px;
+          border-radius:
+            12px;
           background:
             rgba(
               0,
@@ -2096,58 +2457,82 @@ Consider:
         }
 
         .correctionBox label {
-          display: block;
-          font-size: 11px;
-          color: #8da29f;
+          display:
+            block;
+          font-size:
+            11px;
+          color:
+            #96aaa6;
           margin:
             0 0 7px;
         }
 
         .correctionBox label span {
-          color: #536966;
+          color:
+            #647b77;
         }
 
         .correctionInput,
         .rationaleInput {
-          width: 100%;
-          resize: vertical;
-          border-radius: 9px;
-          border: 1px
-            solid
+          width:
+            100%;
+          resize:
+            vertical;
+          border-radius:
+            9px;
+          border:
+            1px solid
             rgba(
               255,
               255,
               255,
               0.08
             );
-          background: #071216;
-          color: #dfe9e7;
-          outline: none;
-          padding: 13px;
-          line-height: 1.6;
-          margin-bottom: 16px;
+          background:
+            #071216;
+          color:
+            #dfe9e7;
+          outline:
+            none;
+          padding:
+            13px;
+          line-height:
+            1.6;
+          margin-bottom:
+            16px;
         }
 
         .correctionInput {
-          min-height: 130px;
+          min-height:
+            130px;
         }
 
         .rationaleInput {
-          min-height: 80px;
+          min-height:
+            80px;
         }
 
         .correctionActions {
-          display: flex;
+          display:
+            flex;
           justify-content:
             flex-end;
-          gap: 9px;
+          gap:
+            9px;
         }
 
         .feedbackStatus {
-          margin-top: 12px;
-          font-size: 11px;
-          color: #94b0aa;
+          margin-top:
+            12px;
+          font-size:
+            11px;
+          color:
+            #9db7b1;
         }
+
+        /*
+         * REGULATORY NEWS
+         */
 
         .newsSection {
           padding:
@@ -2155,16 +2540,31 @@ Consider:
         }
 
         .newsHeader p {
-          color: #788f8c;
-          max-width: 650px;
-          line-height: 1.6;
-          font-size: 13px;
+          color:
+            #8da4a0;
+          max-width:
+            650px;
+          line-height:
+            1.6;
+          font-size:
+            13px;
         }
 
-        .refreshButton {
-          color: #90a7a3;
-          border: 1px
-            solid
+        .newsHeaderActions {
+          display:
+            flex;
+          align-items:
+            center;
+          gap:
+            8px;
+        }
+
+        .refreshButton,
+        .viewAllLink {
+          color:
+            #9bb0ac;
+          border:
+            1px solid
             rgba(
               255,
               255,
@@ -2173,27 +2573,51 @@ Consider:
             );
           background:
             transparent;
-          border-radius: 9px;
-          padding: 9px 12px;
+          border-radius:
+            9px;
+          padding:
+            9px 12px;
+          text-decoration:
+            none;
+          font-size:
+            10px;
+        }
+
+        .viewAllLink {
+          color:
+            #a5c9c1;
+          border-color:
+            rgba(
+              136,
+              200,
+              187,
+              0.18
+            );
         }
 
         .newsGrid {
-          display: grid;
+          display:
+            grid;
           grid-template-columns:
             repeat(
               3,
               1fr
             );
-          gap: 12px;
-          margin-top: 25px;
+          gap:
+            12px;
+          margin-top:
+            25px;
         }
 
         .newsCard {
-          min-height: 250px;
-          padding: 20px;
-          border-radius: 14px;
-          border: 1px
-            solid
+          min-height:
+            250px;
+          padding:
+            20px;
+          border-radius:
+            14px;
+          border:
+            1px solid
             rgba(
               255,
               255,
@@ -2207,60 +2631,103 @@ Consider:
               255,
               0.02
             );
-          display: flex;
+          display:
+            flex;
           flex-direction:
             column;
+          transition:
+            150ms ease;
+        }
+
+        .newsCard:hover {
+          border-color:
+            rgba(
+              135,
+              197,
+              184,
+              0.19
+            );
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.028
+            );
         }
 
         .newsSource {
-          font-size: 9px;
+          font-size:
+            9px;
           letter-spacing:
             0.11em;
-          color: #71918a;
+          color:
+            #7f9e97;
           text-transform:
             uppercase;
         }
 
         .newsCard h3 {
-          font-size: 15px;
-          line-height: 1.4;
+          font-size:
+            15px;
+          line-height:
+            1.4;
           margin:
             13px 0 10px;
         }
 
         .newsCard p {
-          color: #758b88;
-          line-height: 1.55;
-          font-size: 11px;
-          flex: 1;
+          color:
+            #849b97;
+          line-height:
+            1.58;
+          font-size:
+            11px;
+          flex:
+            1;
         }
 
         .newsActions {
-          display: flex;
+          display:
+            flex;
           justify-content:
             space-between;
-          gap: 10px;
-          align-items: center;
-          margin-top: 17px;
+          gap:
+            10px;
+          align-items:
+            center;
+          margin-top:
+            17px;
         }
 
         .newsActions button,
         .newsActions a {
-          font-size: 10px;
-          color: #8fbab1;
+          font-size:
+            10px;
+          color:
+            #9cc6bd;
           background:
             transparent;
-          border: 0;
-          padding: 0;
+          border:
+            0;
+          padding:
+            0;
           text-decoration:
             none;
         }
 
         .newsLoading {
-          padding: 30px 0;
-          color: #607572;
-          font-size: 12px;
+          padding:
+            30px 0;
+          color:
+            #738b86;
+          font-size:
+            12px;
         }
+
+        /*
+         * INTELLIGENCE MODEL
+         */
 
         .foundation {
           padding:
@@ -2268,18 +2735,31 @@ Consider:
         }
 
         .foundationIntro {
-          max-width: 600px;
+          max-width:
+            680px;
+        }
+
+        .foundationIntro p {
+          color:
+            #899f9b;
+          line-height:
+            1.65;
+          font-size:
+            13px;
         }
 
         .foundationGrid {
-          display: grid;
+          display:
+            grid;
           grid-template-columns:
             repeat(
               4,
               1fr
             );
-          gap: 1px;
-          margin-top: 30px;
+          gap:
+            1px;
+          margin-top:
+            30px;
           background:
             rgba(
               255,
@@ -2287,26 +2767,32 @@ Consider:
               255,
               0.06
             );
-          border: 1px
-            solid
+          border:
+            1px solid
             rgba(
               255,
               255,
               255,
               0.06
             );
-          border-radius: 14px;
-          overflow: hidden;
+          border-radius:
+            14px;
+          overflow:
+            hidden;
         }
 
         .foundationGrid > div {
-          padding: 24px;
-          background: #091418;
+          padding:
+            24px;
+          background:
+            #091418;
         }
 
         .foundationGrid span {
-          color: #54706b;
-          font-size: 9px;
+          color:
+            #66807a;
+          font-size:
+            9px;
           font-family:
             ui-monospace,
             monospace;
@@ -2315,34 +2801,64 @@ Consider:
         .foundationGrid h3 {
           margin:
             12px 0 7px;
-          font-size: 17px;
+          font-size:
+            17px;
         }
 
         .foundationGrid p {
-          color: #718784;
-          line-height: 1.55;
-          font-size: 11px;
+          color:
+            #819894;
+          line-height:
+            1.55;
+          font-size:
+            11px;
         }
 
+        /*
+         * FOOTER
+         */
+
         footer {
-          border-top: 1px
-            solid
+          border-top:
+            1px solid
             rgba(
               255,
               255,
               255,
               0.06
             );
-          color: #425a56;
-          padding: 25px 5vw;
-          text-align: center;
-          font-size: 9px;
+          color:
+            #556d68;
+          padding:
+            25px 5vw;
+          display:
+            flex;
+          justify-content:
+            center;
+          align-items:
+            center;
+          gap:
+            10px;
+          font-size:
+            9px;
           letter-spacing:
-            0.13em;
+            0.12em;
         }
 
+        footer div {
+          color:
+            #7a928d;
+          font-weight:
+            800;
+        }
+
+        /*
+         * RESPONSIVE
+         */
+
         @media (
-          max-width: 900px
+          max-width:
+            900px
         ) {
           .modeGrid,
           .foundationGrid {
@@ -2363,23 +2879,17 @@ Consider:
         }
 
         @media (
-          max-width: 620px
+          max-width:
+            620px
         ) {
-          .topbar {
-            padding:
-              0 4vw;
-          }
-
-          .expertBadge {
-            display: none;
-          }
-
           .main {
-            width: 92vw;
+            width:
+              92vw;
           }
 
           .hero {
-            padding-top: 55px;
+            padding-top:
+              55px;
           }
 
           .modeGrid,
@@ -2399,9 +2909,15 @@ Consider:
               column;
           }
 
+          .newsHeaderActions {
+            width:
+              100%;
+          }
+
           .answerCard,
           .askPanel {
-            padding: 21px;
+            padding:
+              21px;
           }
 
           .loadingGrid {
@@ -2415,6 +2931,16 @@ Consider:
           .methodBadge {
             align-self:
               flex-start;
+          }
+
+          .correctionActions {
+            flex-direction:
+              column;
+          }
+
+          footer {
+            flex-direction:
+              column;
           }
         }
       `}</style>

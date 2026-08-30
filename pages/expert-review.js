@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import ReactMarkdown from "react-markdown";
+import BankRegXNav from "../components/BankRegXNav";
 
 const EMPTY_DRAFT = {
   title: "",
@@ -92,6 +93,12 @@ export default function ExpertReview() {
     creatingDraft,
     setCreatingDraft,
   ] = useState(false);
+
+  /*
+   * =====================================================
+   * SESSION
+   * =====================================================
+   */
 
   useEffect(() => {
     checkSession();
@@ -200,6 +207,12 @@ export default function ExpertReview() {
     setReviews([]);
   }
 
+  /*
+   * =====================================================
+   * LOAD REVIEW QUEUE
+   * =====================================================
+   */
+
   async function loadReviews() {
     setLoading(true);
 
@@ -259,6 +272,12 @@ export default function ExpertReview() {
       setLoading(false);
     }
   }
+
+  /*
+   * =====================================================
+   * UPDATE REVIEW
+   * =====================================================
+   */
 
   async function updateReview(
     id,
@@ -353,6 +372,12 @@ export default function ExpertReview() {
     }
   }
 
+  /*
+   * =====================================================
+   * CREATE DRAFT METHODOLOGY FROM REVIEW
+   * =====================================================
+   */
+
   function startDraft(
     review
   ) {
@@ -375,13 +400,6 @@ export default function ExpertReview() {
     setDraftForm({
       title:
         "New methodology principle from expert review",
-
-      /*
-       * Deliberately blank.
-       *
-       * BankRegX should not automatically convert
-       * a case-specific correction into global methodology.
-       */
 
       guidance: "",
 
@@ -417,6 +435,20 @@ export default function ExpertReview() {
           ? "regulatory impact assessment"
           : "BankRegX assessment",
     });
+
+    setTimeout(() => {
+      document
+        .getElementById(
+          `draft-${review.id}`
+        )
+        ?.scrollIntoView({
+          behavior:
+            "smooth",
+
+          block:
+            "center",
+        });
+    }, 50);
   }
 
   function updateDraft(
@@ -426,7 +458,9 @@ export default function ExpertReview() {
     setDraftForm(
       (current) => ({
         ...current,
-        [field]: value,
+
+        [field]:
+          value,
       })
     );
   }
@@ -466,10 +500,10 @@ export default function ExpertReview() {
 
     try {
       /*
-       * Create only a DRAFT.
+       * Always create as DRAFT.
        *
-       * This cannot influence BankRegX until someone
-       * explicitly approves it in Expert Studio.
+       * Review feedback cannot directly influence
+       * BankRegX methodology.
        */
 
       const response =
@@ -530,10 +564,6 @@ export default function ExpertReview() {
         );
       }
 
-      /*
-       * Link the review to the draft methodology record.
-       */
-
       await updateReview(
         review.id,
         {
@@ -549,7 +579,7 @@ export default function ExpertReview() {
       );
 
       setMessage(
-        `${data.guidanceId} created as a draft. It will not affect BankRegX until approved.`
+        `${data.guidanceId} created as a draft. It cannot influence BankRegX until approved in Expert Studio.`
       );
 
       setDraftReviewId(
@@ -571,6 +601,12 @@ export default function ExpertReview() {
       );
     }
   }
+
+  /*
+   * =====================================================
+   * FILTERING
+   * =====================================================
+   */
 
   const filteredReviews =
     useMemo(() => {
@@ -647,6 +683,12 @@ export default function ExpertReview() {
       search,
     ]);
 
+  /*
+   * =====================================================
+   * DISPLAY
+   * =====================================================
+   */
+
   function formatCategory(
     value
   ) {
@@ -680,6 +722,12 @@ export default function ExpertReview() {
     }
   }
 
+  /*
+   * =====================================================
+   * SESSION CHECK
+   * =====================================================
+   */
+
   if (
     authenticated === null
   ) {
@@ -695,12 +743,18 @@ export default function ExpertReview() {
     );
   }
 
+  /*
+   * =====================================================
+   * LOGIN
+   * =====================================================
+   */
+
   if (!authenticated) {
     return (
       <>
         <div className="loginPage">
           <div className="loginCard">
-            <div className="logo">
+            <div className="loginLogo">
               BRX
             </div>
 
@@ -744,6 +798,7 @@ export default function ExpertReview() {
                       .value
                   )
                 }
+                autoComplete="current-password"
                 autoFocus
               />
 
@@ -756,6 +811,7 @@ export default function ExpertReview() {
               )}
 
               <button
+                className="loginButton"
                 type="submit"
                 disabled={
                   loading ||
@@ -770,9 +826,10 @@ export default function ExpertReview() {
 
             <a
               className="backLink"
-              href="/expert-studio"
+              href="/"
             >
-              ← Expert Studio
+              ← Return to
+              BankRegX
             </a>
           </div>
         </div>
@@ -782,73 +839,78 @@ export default function ExpertReview() {
     );
   }
 
+  /*
+   * =====================================================
+   * MAIN PAGE
+   * =====================================================
+   */
+
   return (
     <>
       <div className="page">
-        <header>
-          <div className="brandArea">
-            <div className="logo">
-              BRX
-            </div>
+        <BankRegXNav
+          current="review"
+        />
 
-            <div>
-              <div className="brand">
-                BANKREGX
-              </div>
+        <main className="reviewMain">
+          {/*
+           * =================================================
+           * HERO
+           * =================================================
+           */}
 
-              <div className="subbrand">
-                EXPERT REVIEW
-              </div>
-            </div>
-          </div>
-
-          <nav>
-            <a href="/">
-              BankRegX
-            </a>
-
-            <a href="/expert-studio">
-              Methodology
-            </a>
-
-            <a
-              className="activeNav"
-              href="/expert-review"
-            >
-              Review Queue
-            </a>
-
-            <button
-              onClick={
-                logout
-              }
-            >
-              Sign out
-            </button>
-          </nav>
-        </header>
-
-        <main>
           <section className="hero">
-            <div className="eyebrow">
-              GOVERNED LEARNING
+            <div className="heroTop">
+              <div>
+                <div className="eyebrow">
+                  GOVERNED
+                  LEARNING
+                </div>
+
+                <h1>
+                  Expert Review
+                  Queue
+                </h1>
+
+                <p>
+                  Review BankRegX
+                  corrections and
+                  rejected
+                  assessments,
+                  identify reusable
+                  lessons and decide
+                  whether expert
+                  methodology should
+                  change.
+                </p>
+              </div>
+
+              <div className="sessionPanel">
+                <div className="sessionStatus">
+                  <span className="sessionDot" />
+
+                  SECURE ADMIN
+                  SESSION
+                </div>
+
+                <button
+                  type="button"
+                  className="signOutButton"
+                  onClick={
+                    logout
+                  }
+                >
+                  Sign out
+                </button>
+              </div>
             </div>
-
-            <h1>
-              Expert Review Queue
-            </h1>
-
-            <p>
-              Review BankRegX
-              corrections and
-              rejected assessments,
-              identify reusable
-              lessons and decide
-              whether new expert
-              methodology should be
-              created.
-            </p>
           </section>
+
+          {/*
+           * =================================================
+           * STATS
+           * =================================================
+           */}
 
           <section className="stats">
             <Stat
@@ -880,6 +942,12 @@ export default function ExpertReview() {
             />
           </section>
 
+          {/*
+           * =================================================
+           * FILTERS
+           * =================================================
+           */}
+
           <section className="toolbar">
             <div className="filterButtons">
               {[
@@ -887,18 +955,22 @@ export default function ExpertReview() {
                   "open",
                   "Open",
                 ],
+
                 [
                   "all",
                   "All",
                 ],
+
                 [
                   "corrected",
                   "Corrected",
                 ],
+
                 [
                   "rejected",
                   "Rejected",
                 ],
+
                 [
                   "closed",
                   "Closed",
@@ -912,6 +984,7 @@ export default function ExpertReview() {
                     key={
                       value
                     }
+                    type="button"
                     className={
                       filter ===
                       value
@@ -951,6 +1024,12 @@ export default function ExpertReview() {
               {message}
             </div>
           )}
+
+          {/*
+           * =================================================
+           * QUEUE
+           * =================================================
+           */}
 
           {loading ? (
             <div className="empty">
@@ -999,13 +1078,13 @@ export default function ExpertReview() {
                                 : "REJECTED"}
                             </span>
 
-                            <span className="status">
+                            <span className="reviewStatus">
                               {
                                 review.status
                               }
                             </span>
 
-                            <span className="category">
+                            <span className="reviewCategory">
                               {formatCategory(
                                 review.category
                               )}
@@ -1020,15 +1099,21 @@ export default function ExpertReview() {
                         </div>
 
                         {review.linkedGuidanceId && (
-                          <div className="linkedDraft">
-                            Draft:
-                            {" "}
+                          <a
+                            href="/expert-studio"
+                            className="linkedDraft"
+                          >
+                            DRAFT METHODOLOGY ·{" "}
                             {
                               review.linkedGuidanceId
                             }
-                          </div>
+                          </a>
                         )}
                       </div>
+
+                      {/*
+                       * QUESTION
+                       */}
 
                       <div className="sectionLabel">
                         QUESTION
@@ -1040,16 +1125,28 @@ export default function ExpertReview() {
                         }
                       </div>
 
+                      {/*
+                       * BANKREGX ANSWER
+                       */}
+
                       <div className="sectionLabel">
                         BANKREGX
                         ASSESSMENT
                       </div>
 
-                      <div className="markdown answerPreview">
-                        <ReactMarkdown>
-                          {review.aiResponse}
-                        </ReactMarkdown>
+                      <div className="assessmentContainer">
+                        <div className="markdown answerPreview">
+                          <ReactMarkdown>
+                            {
+                              review.aiResponse
+                            }
+                          </ReactMarkdown>
+                        </div>
                       </div>
+
+                      {/*
+                       * EXPERT CORRECTION
+                       */}
 
                       {review.feedbackType ===
                         "correct" &&
@@ -1085,11 +1182,33 @@ export default function ExpertReview() {
                         </>
                       )}
 
+                      {/*
+                       * INTELLIGENCE TRACE
+                       */}
+
                       {expanded && (
                         <div className="tracePanel">
-                          <div className="sectionLabel">
-                            INTELLIGENCE
-                            TRACE
+                          <div className="traceHeader">
+                            <div>
+                              <div className="sectionLabel traceLabel">
+                                INTELLIGENCE
+                                TRACE
+                              </div>
+
+                              <h3>
+                                Methodology
+                                used in this
+                                assessment
+                              </h3>
+                            </div>
+
+                            <span>
+                              {
+                                review.guidanceIds
+                                  .length
+                              }{" "}
+                              principles
+                            </span>
                           </div>
 
                           {review.guidanceIds.length >
@@ -1144,12 +1263,25 @@ export default function ExpertReview() {
                               {review.retrievalMode ||
                                 "—"}
                             </span>
+
+                            <span>
+                              Live web:
+                              {" "}
+                              {review.usedWebSearch
+                                ? "Yes"
+                                : "No"}
+                            </span>
                           </div>
                         </div>
                       )}
 
+                      {/*
+                       * ACTIONS
+                       */}
+
                       <div className="actions">
                         <button
+                          type="button"
                           onClick={() =>
                             setExpandedId(
                               expanded
@@ -1165,6 +1297,7 @@ export default function ExpertReview() {
 
                         {!review.linkedGuidanceId && (
                           <button
+                            type="button"
                             className="createDraft"
                             onClick={() =>
                               startDraft(
@@ -1181,6 +1314,7 @@ export default function ExpertReview() {
                         {review.status !==
                           "closed" ? (
                           <button
+                            type="button"
                             onClick={() =>
                               closeReview(
                                 review
@@ -1191,6 +1325,7 @@ export default function ExpertReview() {
                           </button>
                         ) : (
                           <button
+                            type="button"
                             onClick={() =>
                               reopenReview(
                                 review
@@ -1202,8 +1337,13 @@ export default function ExpertReview() {
                         )}
                       </div>
 
+                      {/*
+                       * DRAFT BUILDER
+                       */}
+
                       {drafting && (
                         <form
+                          id={`draft-${review.id}`}
                           className="draftBuilder"
                           onSubmit={(
                             event
@@ -1230,6 +1370,7 @@ export default function ExpertReview() {
 
                             <button
                               type="button"
+                              className="cancelButton"
                               onClick={() =>
                                 setDraftReviewId(
                                   null
@@ -1241,21 +1382,24 @@ export default function ExpertReview() {
                           </div>
 
                           <div className="draftNotice">
-                            Do not copy the
+                            Do not copy
+                            the
                             case-specific
-                            answer as a
-                            global rule.
-                            Express the
-                            reusable
+                            correction as
+                            a global
+                            rule. Express
+                            the reusable
                             professional
                             judgement that
-                            BankRegX should
-                            apply in future
+                            BankRegX
+                            should apply
+                            in future
                             cases.
                           </div>
 
                           <label>
-                            Principle title
+                            Principle
+                            title
                           </label>
 
                           <input
@@ -1465,7 +1609,10 @@ export default function ExpertReview() {
                               influence
                               BankRegX
                               until
-                              approved.
+                              explicitly
+                              approved in
+                              Expert
+                              Studio.
                             </span>
 
                             <button
@@ -1489,6 +1636,17 @@ export default function ExpertReview() {
             </section>
           )}
         </main>
+
+        <footer className="reviewFooter">
+          <strong>
+            BANKREGX
+          </strong>
+
+          <span>
+            GOVERNED EXPERT
+            LEARNING
+          </span>
+        </footer>
       </div>
 
       <GlobalStyle />
@@ -1517,15 +1675,18 @@ function GlobalStyle() {
   return (
     <style jsx global>{`
       * {
-        box-sizing: border-box;
+        box-sizing:
+          border-box;
       }
 
       html,
       body {
         margin: 0;
         min-height: 100%;
-        background: #071014;
-        color: #edf5f3;
+        background:
+          #071014;
+        color:
+          #edf5f3;
         font-family:
           Inter,
           ui-sans-serif,
@@ -1540,7 +1701,12 @@ function GlobalStyle() {
         background:
           radial-gradient(
             circle at top left,
-            rgba(67, 143, 128, 0.12),
+            rgba(
+              63,
+              139,
+              125,
+              0.12
+            ),
             transparent 34%
           ),
           #071014;
@@ -1550,630 +1716,1271 @@ function GlobalStyle() {
       input,
       textarea,
       select {
-        font: inherit;
+        font:
+          inherit;
       }
 
       button {
-        cursor: pointer;
+        cursor:
+          pointer;
       }
 
       .page {
-        min-height: 100vh;
+        min-height:
+          100vh;
       }
+
+      /*
+       * LOGIN
+       */
 
       .loadingPage,
       .loginPage {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        min-height:
+          100vh;
+        display:
+          flex;
+        align-items:
+          center;
+        justify-content:
+          center;
       }
 
       .loadingPage {
-        color: #78908c;
+        color:
+          #93aaa5;
       }
 
       .loginPage {
-        padding: 30px;
+        padding:
+          30px;
       }
 
       .loginCard {
-        width: min(440px, 100%);
-        padding: 36px;
-        border-radius: 18px;
-        border: 1px solid
-          rgba(255, 255, 255, 0.08);
+        width:
+          min(
+            440px,
+            100%
+          );
+        padding:
+          36px;
+        border-radius:
+          18px;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.09
+          );
         background:
-          rgba(11, 24, 29, 0.85);
+          rgba(
+            11,
+            24,
+            29,
+            0.88
+          );
       }
 
-      .logo {
-        width: 44px;
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 12px;
-        border: 1px solid
-          rgba(145, 210, 197, 0.3);
-        color: #9fd3c8;
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-      }
-
-      .eyebrow {
-        color: #78b3a7;
-        font-size: 9px;
-        font-weight: 800;
-        letter-spacing: 0.16em;
+      .loginLogo {
+        width:
+          44px;
+        height:
+          44px;
+        display:
+          flex;
+        align-items:
+          center;
+        justify-content:
+          center;
+        border-radius:
+          12px;
+        border:
+          1px solid
+          rgba(
+            145,
+            210,
+            197,
+            0.3
+          );
+        color:
+          #b9e2da;
+        font-size:
+          10px;
+        font-weight:
+          800;
+        letter-spacing:
+          0.08em;
       }
 
       .loginCard .eyebrow {
-        margin-top: 20px;
+        margin-top:
+          20px;
       }
 
       .loginCard h1 {
-        margin: 9px 0;
-        font-size: 40px;
-        letter-spacing: -0.04em;
+        margin:
+          9px 0;
+        font-size:
+          40px;
+        letter-spacing:
+          -0.04em;
       }
 
       .loginCard p {
-        color: #829894;
-        line-height: 1.6;
+        color:
+          #9db0ac;
+        line-height:
+          1.65;
       }
 
+      .loginButton {
+        width:
+          100%;
+        border:
+          0;
+        margin-top:
+          18px;
+        padding:
+          12px;
+        border-radius:
+          9px;
+        background:
+          #9cd5ca;
+        color:
+          #071311;
+        font-weight:
+          800;
+      }
+
+      .backLink {
+        display:
+          inline-block;
+        margin-top:
+          20px;
+        color:
+          #9fc1ba;
+        text-decoration:
+          none;
+        font-size:
+          11px;
+      }
+
+      .error {
+        color:
+          #dca4a4;
+        font-size:
+          11px;
+        margin-top:
+          10px;
+      }
+
+      /*
+       * MAIN
+       */
+
+      .reviewMain {
+        width:
+          min(
+            1180px,
+            90vw
+          );
+        margin:
+          0 auto;
+      }
+
+      .hero {
+        padding:
+          72px 0 32px;
+      }
+
+      .heroTop {
+        display:
+          flex;
+        justify-content:
+          space-between;
+        align-items:
+          flex-start;
+        gap:
+          40px;
+      }
+
+      .eyebrow {
+        color:
+          #87c3b7;
+        font-size:
+          9px;
+        font-weight:
+          800;
+        letter-spacing:
+          0.17em;
+      }
+
+      .hero h1 {
+        margin:
+          12px 0 14px;
+        font-size:
+          clamp(
+            44px,
+            5vw,
+            66px
+          );
+        line-height:
+          1;
+        letter-spacing:
+          -0.045em;
+        color:
+          #f1f6f5;
+      }
+
+      .hero p {
+        max-width:
+          720px;
+        color:
+          #9eb2ae;
+        line-height:
+          1.7;
+        font-size:
+          14px;
+      }
+
+      /*
+       * SESSION
+       */
+
+      .sessionPanel {
+        display:
+          flex;
+        align-items:
+          center;
+        gap:
+          9px;
+        padding-top:
+          3px;
+      }
+
+      .sessionStatus {
+        display:
+          flex;
+        align-items:
+          center;
+        gap:
+          7px;
+        color:
+          #8eaaa4;
+        font-size:
+          8px;
+        font-weight:
+          700;
+        letter-spacing:
+          0.09em;
+      }
+
+      .sessionDot {
+        width:
+          6px;
+        height:
+          6px;
+        border-radius:
+          50%;
+        background:
+          #7fc4b4;
+        box-shadow:
+          0 0 10px
+          rgba(
+            127,
+            196,
+            180,
+            0.45
+          );
+      }
+
+      .signOutButton {
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.1
+          );
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.025
+          );
+        color:
+          #a8bbb7;
+        border-radius:
+          8px;
+        padding:
+          8px 11px;
+        font-size:
+          10px;
+      }
+
+      /*
+       * STATS
+       */
+
+      .stats {
+        display:
+          grid;
+        grid-template-columns:
+          repeat(
+            4,
+            1fr
+          );
+        gap:
+          10px;
+        margin:
+          18px 0;
+      }
+
+      .stat {
+        padding:
+          19px;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.075
+          );
+        border-radius:
+          12px;
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.026
+          );
+      }
+
+      .stat span {
+        display:
+          block;
+        color:
+          #82a09a;
+        font-size:
+          9px;
+        letter-spacing:
+          0.11em;
+        text-transform:
+          uppercase;
+      }
+
+      .stat strong {
+        display:
+          block;
+        margin-top:
+          9px;
+        color:
+          #edf5f3;
+        font-size:
+          29px;
+      }
+
+      /*
+       * TOOLBAR
+       */
+
+      .toolbar {
+        display:
+          flex;
+        justify-content:
+          space-between;
+        align-items:
+          center;
+        gap:
+          15px;
+        margin:
+          22px 0;
+      }
+
+      .filterButtons {
+        display:
+          flex;
+        gap:
+          7px;
+        flex-wrap:
+          wrap;
+      }
+
+      .filterButtons button {
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.08
+          );
+        color:
+          #98aca8;
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.025
+          );
+        border-radius:
+          8px;
+        padding:
+          9px 11px;
+        font-size:
+          10px;
+      }
+
+      .filterButtons button:hover {
+        color:
+          #e5efed;
+      }
+
+      .filterButtons .selected {
+        color:
+          #c4e3dc;
+        border-color:
+          rgba(
+            132,
+            201,
+            187,
+            0.34
+          );
+        background:
+          rgba(
+            92,
+            160,
+            147,
+            0.1
+          );
+      }
+
+      .toolbar > input {
+        width:
+          280px;
+      }
+
+      /*
+       * INPUTS
+       */
+
       label {
-        display: block;
-        margin: 15px 0 7px;
-        color: #8fa5a1;
-        font-size: 10px;
-        font-weight: 650;
+        display:
+          block;
+        margin:
+          15px 0 7px;
+        color:
+          #a4b7b3;
+        font-size:
+          10px;
+        font-weight:
+          650;
       }
 
       input,
       textarea,
       select {
-        width: 100%;
-        outline: none;
-        border: 1px solid
-          rgba(255, 255, 255, 0.09);
-        background: #071317;
-        color: #e8f0ef;
-        border-radius: 9px;
-        padding: 11px 12px;
+        width:
+          100%;
+        outline:
+          none;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.1
+          );
+        background:
+          #071317;
+        color:
+          #e8f0ef;
+        border-radius:
+          9px;
+        padding:
+          11px 12px;
       }
 
       textarea {
-        min-height: 125px;
-        resize: vertical;
-        line-height: 1.6;
+        min-height:
+          125px;
+        resize:
+          vertical;
+        line-height:
+          1.6;
+      }
+
+      input::placeholder,
+      textarea::placeholder {
+        color:
+          #667e79;
       }
 
       input:focus,
       textarea:focus,
       select:focus {
         border-color:
-          rgba(128, 199, 185, 0.5);
+          rgba(
+            128,
+            199,
+            185,
+            0.52
+          );
       }
 
-      .loginCard button {
-        width: 100%;
-        border: 0;
-        margin-top: 18px;
-        padding: 12px;
-        border-radius: 9px;
-        background: #9cd5ca;
-        color: #071311;
-        font-weight: 800;
-      }
-
-      button:disabled {
-        opacity: 0.45;
-      }
-
-      .error {
-        color: #d8a0a0;
-        font-size: 11px;
-        margin-top: 10px;
-      }
-
-      .backLink {
-        display: inline-block;
-        margin-top: 20px;
-        color: #82aca4;
-        text-decoration: none;
-        font-size: 11px;
-      }
-
-      header {
-        min-height: 76px;
-        padding: 0 5vw;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        border-bottom: 1px solid
-          rgba(255, 255, 255, 0.06);
-      }
-
-      .brandArea {
-        display: flex;
-        align-items: center;
-        gap: 13px;
-      }
-
-      .brand {
-        font-size: 14px;
-        font-weight: 800;
-        letter-spacing: 0.15em;
-      }
-
-      .subbrand {
-        margin-top: 3px;
-        color: #617a75;
-        font-size: 9px;
-        letter-spacing: 0.12em;
-      }
-
-      nav {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      nav a,
-      nav button {
-        color: #829a95;
-        text-decoration: none;
-        background: transparent;
-        border: 1px solid
-          rgba(255, 255, 255, 0.07);
-        border-radius: 8px;
-        padding: 8px 10px;
-        font-size: 10px;
-      }
-
-      nav .activeNav {
-        color: #b0d9d0;
-        border-color:
-          rgba(134, 203, 189, 0.26);
-      }
-
-      main {
-        width: min(1180px, 90vw);
-        margin: 0 auto;
-      }
-
-      .hero {
-        padding: 70px 0 30px;
-      }
-
-      .hero h1 {
-        margin: 10px 0 12px;
-        font-size:
-          clamp(40px, 5vw, 66px);
-        letter-spacing: -0.045em;
-      }
-
-      .hero p {
-        max-width: 720px;
-        color: #809793;
-        line-height: 1.7;
-      }
-
-      .stats {
-        display: grid;
-        grid-template-columns:
-          repeat(4, 1fr);
-        gap: 10px;
-        margin: 20px 0;
-      }
-
-      .stat {
-        padding: 18px;
-        border: 1px solid
-          rgba(255, 255, 255, 0.07);
-        border-radius: 12px;
-        background:
-          rgba(255, 255, 255, 0.025);
-      }
-
-      .stat span {
-        display: block;
-        color: #67807b;
-        font-size: 9px;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-      }
-
-      .stat strong {
-        display: block;
-        margin-top: 9px;
-        font-size: 27px;
-      }
-
-      .toolbar {
-        display: flex;
-        justify-content: space-between;
-        gap: 15px;
-        margin: 22px 0;
-      }
-
-      .filterButtons {
-        display: flex;
-        gap: 7px;
-        flex-wrap: wrap;
-      }
-
-      .filterButtons button {
-        border: 1px solid
-          rgba(255, 255, 255, 0.07);
-        color: #78908b;
-        background:
-          rgba(255, 255, 255, 0.02);
-        border-radius: 8px;
-        padding: 9px 11px;
-        font-size: 10px;
-      }
-
-      .filterButtons .selected {
-        color: #b3d9d1;
-        border-color:
-          rgba(132, 201, 187, 0.32);
-        background:
-          rgba(92, 160, 147, 0.08);
-      }
-
-      .toolbar > input {
-        width: 270px;
-      }
+      /*
+       * MESSAGE
+       */
 
       .message {
-        margin: 14px 0;
-        padding: 12px 14px;
-        border-radius: 9px;
+        margin:
+          14px 0;
+        padding:
+          12px 14px;
+        border-radius:
+          9px;
         background:
-          rgba(94, 158, 146, 0.07);
-        color: #91b6af;
-        font-size: 11px;
+          rgba(
+            94,
+            158,
+            146,
+            0.08
+          );
+        border:
+          1px solid
+          rgba(
+            137,
+            202,
+            189,
+            0.09
+          );
+        color:
+          #a7c7c0;
+        font-size:
+          11px;
       }
 
+      /*
+       * REVIEWS
+       */
+
       .reviewList {
-        display: grid;
-        gap: 14px;
-        margin-bottom: 80px;
+        display:
+          grid;
+        gap:
+          14px;
+        margin-bottom:
+          80px;
       }
 
       .reviewCard {
-        padding: 25px;
-        border: 1px solid
-          rgba(255, 255, 255, 0.07);
-        border-radius: 15px;
+        padding:
+          26px;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.075
+          );
+        border-radius:
+          15px;
         background:
-          rgba(10, 23, 28, 0.78);
+          rgba(
+            10,
+            23,
+            28,
+            0.8
+          );
       }
 
       .reviewTop {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-        margin-bottom: 22px;
+        display:
+          flex;
+        justify-content:
+          space-between;
+        gap:
+          20px;
+        margin-bottom:
+          22px;
       }
 
       .badgeRow {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          6px;
       }
 
       .feedbackType,
-      .status,
-      .category {
-        border-radius: 999px;
-        padding: 5px 8px;
-        font-size: 8px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+      .reviewStatus,
+      .reviewCategory {
+        border-radius:
+          999px;
+        padding:
+          5px 8px;
+        font-size:
+          8px;
+        letter-spacing:
+          0.08em;
+        text-transform:
+          uppercase;
       }
 
-      .corrected {
-        color: #d5c07e;
+      .feedbackType.corrected {
+        color:
+          #dcc98e;
         background:
-          rgba(188, 153, 65, 0.08);
+          rgba(
+            188,
+            153,
+            65,
+            0.1
+          );
       }
 
-      .rejected {
-        color: #d69b9b;
+      .feedbackType.rejected {
+        color:
+          #dda3a3;
         background:
-          rgba(182, 79, 79, 0.08);
+          rgba(
+            182,
+            79,
+            79,
+            0.1
+          );
       }
 
-      .status,
-      .category {
-        color: #77918c;
-        border: 1px solid
-          rgba(255, 255, 255, 0.06);
+      .reviewStatus,
+      .reviewCategory {
+        color:
+          #879f9a;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.065
+          );
       }
 
       .date {
-        margin-top: 8px;
-        color: #546c67;
-        font-size: 9px;
+        margin-top:
+          8px;
+        color:
+          #728a85;
+        font-size:
+          9px;
       }
 
       .linkedDraft {
-        color: #8eb7ae;
+        color:
+          #a2c9c0;
+        border:
+          1px solid
+          rgba(
+            137,
+            202,
+            189,
+            0.16
+          );
+        border-radius:
+          7px;
+        padding:
+          7px 9px;
+        text-decoration:
+          none;
         font-family:
           ui-monospace,
           monospace;
-        font-size: 9px;
+        font-size:
+          9px;
       }
 
+      /*
+       * REVIEW CONTENT
+       */
+
       .sectionLabel {
-        margin-top: 22px;
-        color: #66817b;
-        font-size: 8px;
-        font-weight: 800;
-        letter-spacing: 0.15em;
+        margin-top:
+          24px;
+        color:
+          #79958f;
+        font-size:
+          8px;
+        font-weight:
+          800;
+        letter-spacing:
+          0.15em;
       }
 
       .question {
-        margin-top: 8px;
-        color: #e2ecea;
-        font-size: 14px;
-        line-height: 1.6;
+        margin-top:
+          8px;
+        color:
+          #e7efed;
+        font-size:
+          14px;
+        line-height:
+          1.65;
+      }
+
+      .assessmentContainer {
+        margin-top:
+          8px;
+        padding:
+          0 17px;
+        border-radius:
+          11px;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.055
+          );
+        background:
+          rgba(
+            0,
+            0,
+            0,
+            0.11
+          );
       }
 
       .markdown {
-        margin-top: 6px;
-        color: #aebfbc;
-        font-size: 12px;
-        line-height: 1.7;
+        color:
+          #bac9c6;
+        font-size:
+          12px;
+        line-height:
+          1.72;
       }
 
       .markdown h1,
       .markdown h2,
       .markdown h3 {
-        color: #e8f1ef;
+        color:
+          #eaf2f0;
       }
 
       .markdown h3 {
-        font-size: 15px;
-        margin-top: 20px;
+        font-size:
+          15px;
+        margin-top:
+          21px;
       }
 
       .markdown li {
-        margin: 5px 0;
+        margin:
+          5px 0;
       }
 
       .answerPreview {
-        max-height: 320px;
-        overflow: auto;
-        padding-right: 10px;
+        max-height:
+          360px;
+        overflow-y:
+          auto;
+        padding:
+          12px 10px
+          12px 0;
       }
 
+      /*
+       * CORRECTION
+       */
+
       .correctionLabel {
-        color: #b69f65;
+        color:
+          #c6ad70;
       }
 
       .correction {
-        margin-top: 8px;
-        padding: 16px;
-        border-radius: 10px;
-        border: 1px solid
-          rgba(202, 174, 98, 0.14);
+        margin-top:
+          8px;
+        padding:
+          17px;
+        border-radius:
+          10px;
+        border:
+          1px solid
+          rgba(
+            202,
+            174,
+            98,
+            0.17
+          );
         background:
-          rgba(170, 140, 62, 0.035);
-        color: #c9d4d1;
-        line-height: 1.7;
-        font-size: 12px;
+          rgba(
+            170,
+            140,
+            62,
+            0.045
+          );
+        color:
+          #cdd8d5;
+        line-height:
+          1.7;
+        font-size:
+          12px;
       }
 
       .correction p:first-child {
-        margin-top: 0;
+        margin-top:
+          0;
       }
 
       .rationale {
-        margin-top: 8px;
-        color: #93a7a3;
-        line-height: 1.6;
-        font-size: 11px;
+        margin-top:
+          8px;
+        color:
+          #9baea9;
+        line-height:
+          1.65;
+        font-size:
+          11px;
       }
+
+      /*
+       * TRACE
+       */
 
       .tracePanel {
-        margin-top: 22px;
-        padding: 17px;
-        border-radius: 11px;
+        margin-top:
+          22px;
+        padding:
+          18px;
+        border-radius:
+          11px;
+        border:
+          1px solid
+          rgba(
+            137,
+            202,
+            189,
+            0.1
+          );
         background:
-          rgba(0, 0, 0, 0.15);
+          rgba(
+            0,
+            0,
+            0,
+            0.15
+          );
       }
 
-      .tracePanel .sectionLabel {
-        margin-top: 0;
+      .traceHeader {
+        display:
+          flex;
+        justify-content:
+          space-between;
+        align-items:
+          flex-start;
+        gap:
+          15px;
+      }
+
+      .traceHeader h3 {
+        margin:
+          6px 0 0;
+        font-size:
+          16px;
+      }
+
+      .traceHeader > span {
+        color:
+          #829c96;
+        font-size:
+          9px;
+      }
+
+      .traceLabel {
+        margin-top:
+          0;
       }
 
       .guidanceTrace {
-        margin-top: 12px;
-        display: grid;
-        gap: 7px;
+        margin-top:
+          14px;
+        display:
+          grid;
+        gap:
+          7px;
       }
 
       .guidanceTrace > div {
-        display: grid;
+        display:
+          grid;
         grid-template-columns:
-          130px 1fr;
-        gap: 12px;
-        padding: 9px;
-        border-radius: 8px;
+          140px
+          1fr;
+        gap:
+          12px;
+        padding:
+          10px;
+        border-radius:
+          8px;
         background:
-          rgba(255, 255, 255, 0.025);
+          rgba(
+            255,
+            255,
+            255,
+            0.028
+          );
       }
 
       .guidanceTrace span {
-        color: #6d8983;
+        color:
+          #82a099;
         font-family:
           ui-monospace,
           monospace;
-        font-size: 9px;
+        font-size:
+          9px;
       }
 
       .guidanceTrace strong {
-        color: #9eb2ae;
-        font-size: 10px;
-        font-weight: 600;
+        color:
+          #a9bbb7;
+        font-size:
+          10px;
+        font-weight:
+          600;
       }
 
       .traceMeta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
-        margin-top: 13px;
-        color: #58716c;
-        font-size: 9px;
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          16px;
+        margin-top:
+          14px;
+        color:
+          #6f8882;
+        font-size:
+          9px;
       }
 
       .muted {
-        margin-top: 10px;
-        color: #5c746f;
-        font-size: 10px;
+        margin-top:
+          10px;
+        color:
+          #718a84;
+        font-size:
+          10px;
       }
 
+      /*
+       * ACTIONS
+       */
+
       .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 22px;
-        padding-top: 17px;
-        border-top: 1px solid
-          rgba(255, 255, 255, 0.05);
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          8px;
+        margin-top:
+          22px;
+        padding-top:
+          18px;
+        border-top:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.055
+          );
       }
 
       .actions button,
-      .draftHeader button {
-        border: 1px solid
-          rgba(255, 255, 255, 0.08);
-        color: #829a95;
+      .cancelButton {
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.09
+          );
+        color:
+          #a0b4b0;
         background:
-          rgba(255, 255, 255, 0.025);
-        border-radius: 8px;
-        padding: 8px 11px;
-        font-size: 10px;
+          rgba(
+            255,
+            255,
+            255,
+            0.028
+          );
+        border-radius:
+          8px;
+        padding:
+          8px 11px;
+        font-size:
+          10px;
+      }
+
+      .actions button:hover {
+        color:
+          #e5efed;
       }
 
       .actions .createDraft {
-        color: #a8d0c7;
+        color:
+          #b3d9d0;
         border-color:
-          rgba(132, 200, 186, 0.22);
+          rgba(
+            132,
+            200,
+            186,
+            0.24
+          );
       }
 
+      /*
+       * DRAFT BUILDER
+       */
+
       .draftBuilder {
-        margin-top: 20px;
-        padding: 21px;
-        border-radius: 12px;
-        border: 1px solid
-          rgba(132, 200, 186, 0.16);
+        margin-top:
+          20px;
+        padding:
+          22px;
+        border-radius:
+          12px;
+        border:
+          1px solid
+          rgba(
+            132,
+            200,
+            186,
+            0.18
+          );
         background:
-          rgba(63, 116, 106, 0.045);
+          rgba(
+            63,
+            116,
+            106,
+            0.055
+          );
       }
 
       .draftHeader {
-        display: flex;
-        justify-content: space-between;
-        gap: 15px;
+        display:
+          flex;
+        justify-content:
+          space-between;
+        gap:
+          15px;
       }
 
       .draftHeader h3 {
-        margin: 7px 0 0;
+        margin:
+          7px 0 0;
       }
 
       .draftNotice {
-        margin: 17px 0;
-        padding: 12px;
-        border-left: 2px solid
-          rgba(132, 200, 186, 0.35);
-        color: #839b96;
+        margin:
+          17px 0;
+        padding:
+          13px;
+        border-left:
+          2px solid
+          rgba(
+            132,
+            200,
+            186,
+            0.38
+          );
+        color:
+          #91a7a2;
         background:
-          rgba(0, 0, 0, 0.12);
-        font-size: 10px;
-        line-height: 1.6;
+          rgba(
+            0,
+            0,
+            0,
+            0.12
+          );
+        font-size:
+          10px;
+        line-height:
+          1.65;
       }
 
       .formGrid {
-        display: grid;
+        display:
+          grid;
         grid-template-columns:
-          repeat(2, 1fr);
-        gap: 11px;
+          repeat(
+            2,
+            1fr
+          );
+        gap:
+          11px;
       }
 
       .smallTextarea {
-        min-height: 85px;
+        min-height:
+          85px;
       }
 
       .draftFooter {
-        margin-top: 18px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 18px;
+        margin-top:
+          18px;
+        display:
+          flex;
+        justify-content:
+          space-between;
+        align-items:
+          center;
+        gap:
+          18px;
       }
 
       .draftFooter span {
-        color: #647d78;
-        font-size: 9px;
-        line-height: 1.5;
+        max-width:
+          520px;
+        color:
+          #7d9791;
+        font-size:
+          9px;
+        line-height:
+          1.6;
       }
 
       .primaryButton {
-        width: auto;
-        border: 0;
-        border-radius: 9px;
-        padding: 10px 14px;
-        background: #9dd5ca;
-        color: #071311;
-        font-weight: 800;
+        width:
+          auto;
+        border:
+          0;
+        border-radius:
+          9px;
+        padding:
+          11px 14px;
+        background:
+          #9dd5ca;
+        color:
+          #071311;
+        font-weight:
+          800;
       }
+
+      /*
+       * EMPTY
+       */
 
       .empty {
-        margin: 30px 0 80px;
-        padding: 35px;
-        text-align: center;
-        color: #607772;
-        border: 1px solid
-          rgba(255, 255, 255, 0.06);
-        border-radius: 13px;
+        margin:
+          30px 0 80px;
+        padding:
+          35px;
+        text-align:
+          center;
+        color:
+          #7c9690;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.065
+          );
+        border-radius:
+          13px;
       }
 
+      /*
+       * FOOTER
+       */
+
+      .reviewFooter {
+        border-top:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.06
+          );
+        padding:
+          25px 5vw;
+        display:
+          flex;
+        justify-content:
+          center;
+        align-items:
+          center;
+        gap:
+          10px;
+        color:
+          #637b76;
+        font-size:
+          9px;
+        letter-spacing:
+          0.12em;
+      }
+
+      .reviewFooter strong {
+        color:
+          #819b95;
+      }
+
+      /*
+       * RESPONSIVE
+       */
+
       @media (
-        max-width: 760px
+        max-width:
+          800px
       ) {
-        header,
+        .heroTop,
         .toolbar,
         .reviewTop,
         .draftHeader,
         .draftFooter {
-          align-items: flex-start;
-          flex-direction: column;
+          align-items:
+            flex-start;
+          flex-direction:
+            column;
         }
 
-        header {
-          height: auto;
-          padding-top: 15px;
-          padding-bottom: 15px;
-        }
-
-        nav {
-          flex-wrap: wrap;
+        .sessionPanel {
+          width:
+            100%;
+          justify-content:
+            space-between;
         }
 
         .stats,
         .formGrid {
           grid-template-columns:
-            repeat(2, 1fr);
+            repeat(
+              2,
+              1fr
+            );
         }
 
         .toolbar > input {
-          width: 100%;
+          width:
+            100%;
         }
 
         .guidanceTrace > div {
@@ -2183,12 +2990,23 @@ function GlobalStyle() {
       }
 
       @media (
-        max-width: 500px
+        max-width:
+          500px
       ) {
+        .reviewMain {
+          width:
+            92vw;
+        }
+
         .stats,
         .formGrid {
           grid-template-columns:
             1fr;
+        }
+
+        .reviewCard {
+          padding:
+            20px;
         }
       }
     `}</style>
