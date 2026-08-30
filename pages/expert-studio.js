@@ -76,6 +76,27 @@ export default function ExpertStudio() {
     setStatusFilter,
   ] = useState("all");
 
+  /*
+   * =====================================================
+   * VERSION HISTORY STATE
+   * =====================================================
+   */
+
+  const [
+    historyData,
+    setHistoryData,
+  ] = useState(null);
+
+  const [
+    historyLoading,
+    setHistoryLoading,
+  ] = useState(false);
+
+  const [
+    historyError,
+    setHistoryError,
+  ] = useState("");
+
   useEffect(() => {
     checkSession();
   }, []);
@@ -180,6 +201,7 @@ export default function ExpertStudio() {
     );
 
     setGuidance([]);
+    setHistoryData(null);
   }
 
   async function loadGuidance() {
@@ -231,6 +253,180 @@ export default function ExpertStudio() {
       setLoading(false);
     }
   }
+
+  /*
+   * =====================================================
+   * VERSION HISTORY
+   * =====================================================
+   */
+
+  async function openHistory(
+    item
+  ) {
+    setHistoryData(null);
+    setHistoryError("");
+    setHistoryLoading(true);
+
+    try {
+      const response =
+        await fetch(
+          `/api/admin/guidance-history?guidanceId=${encodeURIComponent(
+            item.guidanceId
+          )}`,
+          {
+            cache:
+              "no-store",
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        response.status ===
+        401
+      ) {
+        setAuthenticated(
+          false
+        );
+
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Unable to load version history"
+        );
+      }
+
+      setHistoryData(
+        data
+      );
+    } catch (error) {
+      setHistoryError(
+        error.message
+      );
+    } finally {
+      setHistoryLoading(
+        false
+      );
+    }
+  }
+
+  function closeHistory() {
+    setHistoryData(null);
+    setHistoryError("");
+    setHistoryLoading(false);
+  }
+
+  function compareValues(
+    first,
+    second
+  ) {
+    if (
+      Array.isArray(first) ||
+      Array.isArray(second)
+    ) {
+      return JSON.stringify(
+        first || []
+      ) ===
+        JSON.stringify(
+          second || []
+        );
+    }
+
+    return (
+      String(
+        first ?? ""
+      ) ===
+      String(
+        second ?? ""
+      )
+    );
+  }
+
+  function getChanges(
+    version,
+    previousVersion
+  ) {
+    if (!previousVersion) {
+      return [
+        "Original version",
+      ];
+    }
+
+    const fields = [
+      [
+        "title",
+        "Title",
+      ],
+      [
+        "guidance",
+        "Expert principle",
+      ],
+      [
+        "category",
+        "Category",
+      ],
+      [
+        "subcategory",
+        "Subcategory",
+      ],
+      [
+        "tags",
+        "Tags",
+      ],
+      [
+        "priority",
+        "Priority",
+      ],
+      [
+        "rationale",
+        "Rationale",
+      ],
+      [
+        "appliesTo",
+        "Applies to",
+      ],
+      [
+        "status",
+        "Status",
+      ],
+    ];
+
+    const changes =
+      fields
+        .filter(
+          ([
+            field,
+          ]) =>
+            !compareValues(
+              version[field],
+              previousVersion[
+                field
+              ]
+            )
+        )
+        .map(
+          ([
+            ,
+            label,
+          ]) => label
+        );
+
+    return changes.length
+      ? changes
+      : [
+          "Administrative update",
+        ];
+  }
+
+  /*
+   * =====================================================
+   * FORM HELPERS
+   * =====================================================
+   */
 
   function splitList(
     value
@@ -437,6 +633,12 @@ export default function ExpertStudio() {
     }
   }
 
+  /*
+   * =====================================================
+   * STATUS GOVERNANCE
+   * =====================================================
+   */
+
   async function changeStatus(
     item,
     status
@@ -504,6 +706,12 @@ export default function ExpertStudio() {
       );
     }
   }
+
+  /*
+   * =====================================================
+   * DASHBOARD
+   * =====================================================
+   */
 
   const stats =
     useMemo(() => {
@@ -595,14 +803,41 @@ export default function ExpertStudio() {
     }
   }
 
+  function displayCategory(
+    value
+  ) {
+    return String(
+      value || "general"
+    )
+      .replace(
+        /_/g,
+        " "
+      )
+      .replace(
+        /\b\w/g,
+        (letter) =>
+          letter.toUpperCase()
+      );
+  }
+
+  /*
+   * =====================================================
+   * AUTH UI
+   * =====================================================
+   */
+
   if (
     authenticated === null
   ) {
     return (
-      <div className="loadingPage">
-        Checking Expert Studio
-        session...
-      </div>
+      <>
+        <div className="loadingPage">
+          Checking Expert Studio
+          session...
+        </div>
+
+        <GlobalStyle />
+      </>
     );
   }
 
@@ -680,10 +915,9 @@ export default function ExpertStudio() {
 
             <div className="securityNote">
               Your admin key is
-              exchanged for a
-              secure HTTP-only
-              session and is not
-              stored in the
+              exchanged for a secure
+              HTTP-only session and
+              is not stored in the
               browser.
             </div>
 
@@ -691,8 +925,7 @@ export default function ExpertStudio() {
               href="/"
               className="homeLink"
             >
-              ← Return to
-              BankRegX
+              ← Return to BankRegX
             </a>
           </div>
         </div>
@@ -701,6 +934,12 @@ export default function ExpertStudio() {
       </>
     );
   }
+
+  /*
+   * =====================================================
+   * MAIN EXPERT STUDIO
+   * =====================================================
+   */
 
   return (
     <>
@@ -727,6 +966,10 @@ export default function ExpertStudio() {
               BankRegX
             </a>
 
+            <a href="/expert-review">
+              Review Queue
+            </a>
+
             <button
               onClick={
                 logout
@@ -745,18 +988,15 @@ export default function ExpertStudio() {
             </div>
 
             <h1>
-              Expert
-              methodology
+              Expert methodology
             </h1>
 
             <p>
               Create, review,
-              approve, version
-              and retire the
-              professional
-              principles that
-              inform BankRegX
-              assessments.
+              approve, version and
+              retire the professional
+              principles that inform
+              BankRegX assessments.
             </p>
           </section>
 
@@ -890,18 +1130,15 @@ export default function ExpertStudio() {
                     }
                   >
                     <option value="control_design">
-                      Control
-                      Design
+                      Control Design
                     </option>
 
                     <option value="audit_judgement">
-                      Audit
-                      Judgement
+                      Audit Judgement
                     </option>
 
                     <option value="regulatory_impact">
-                      Regulatory
-                      Impact
+                      Regulatory Impact
                     </option>
 
                     <option value="general">
@@ -1025,8 +1262,8 @@ export default function ExpertStudio() {
                 />
 
                 <span className="hint">
-                  Separate tags
-                  with commas.
+                  Separate tags with
+                  commas.
                 </span>
               </div>
 
@@ -1106,8 +1343,7 @@ export default function ExpertStudio() {
                 </div>
 
                 <h2>
-                  Expert
-                  intelligence
+                  Expert intelligence
                 </h2>
               </div>
 
@@ -1167,8 +1403,8 @@ export default function ExpertStudio() {
             ) : filteredGuidance.length ===
               0 ? (
               <div className="empty">
-                No principles
-                match this view.
+                No principles match
+                this view.
               </div>
             ) : (
               <div className="guidanceList">
@@ -1213,11 +1449,14 @@ export default function ExpertStudio() {
                           </h3>
 
                           <div className="category">
-                            {
+                            {displayCategory(
                               item.category
-                            }
+                            )}
+
                             {item.subcategory
-                              ? ` · ${item.subcategory}`
+                              ? ` · ${displayCategory(
+                                  item.subcategory
+                                )}`
                               : ""}
                           </div>
                         </div>
@@ -1241,7 +1480,9 @@ export default function ExpertStudio() {
                           <strong>
                             Rationale
                           </strong>
+
                           <br />
+
                           {
                             item.rationale
                           }
@@ -1272,6 +1513,7 @@ export default function ExpertStudio() {
                           <span>
                             USED
                           </span>
+
                           <strong>
                             {
                               item.usageCount
@@ -1283,6 +1525,7 @@ export default function ExpertStudio() {
                           <span>
                             LAST USED
                           </span>
+
                           <strong>
                             {formatDate(
                               item.lastUsedAt
@@ -1294,6 +1537,7 @@ export default function ExpertStudio() {
                           <span>
                             UPDATED
                           </span>
+
                           <strong>
                             {formatDate(
                               item.updatedAt
@@ -1303,6 +1547,17 @@ export default function ExpertStudio() {
                       </div>
 
                       <div className="cardActions">
+                        <button
+                          className="historyButton"
+                          onClick={() =>
+                            openHistory(
+                              item
+                            )
+                          }
+                        >
+                          View history
+                        </button>
+
                         <button
                           onClick={() =>
                             editItem(
@@ -1337,8 +1592,7 @@ export default function ExpertStudio() {
                               )
                             }
                           >
-                            Move to
-                            draft
+                            Move to draft
                           </button>
                         )}
 
@@ -1365,6 +1619,313 @@ export default function ExpertStudio() {
           </section>
         </main>
       </div>
+
+      {(historyLoading ||
+        historyData ||
+        historyError) && (
+        <div
+          className="modalBackdrop"
+          onClick={
+            closeHistory
+          }
+        >
+          <div
+            className="historyModal"
+            onClick={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="historyHeader">
+              <div>
+                <div className="eyebrow">
+                  METHODOLOGY
+                  AUDIT TRAIL
+                </div>
+
+                <h2>
+                  Version history
+                </h2>
+
+                {historyData && (
+                  <div className="historyId">
+                    {
+                      historyData.guidanceId
+                    }
+                  </div>
+                )}
+              </div>
+
+              <button
+                className="closeButton"
+                onClick={
+                  closeHistory
+                }
+              >
+                ×
+              </button>
+            </div>
+
+            {historyLoading && (
+              <div className="historyLoading">
+                Loading methodology
+                audit trail...
+              </div>
+            )}
+
+            {historyError && (
+              <div className="historyError">
+                {historyError}
+              </div>
+            )}
+
+            {historyData && (
+              <>
+                <div className="historySummary">
+                  <div>
+                    <span>
+                      CURRENT VERSION
+                    </span>
+
+                    <strong>
+                      v
+                      {
+                        historyData.currentVersion
+                      }
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      VERSIONS
+                    </span>
+
+                    <strong>
+                      {
+                        historyData.versionCount
+                      }
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      DOCUMENT
+                    </span>
+
+                    <strong className="documentId">
+                      {
+                        historyData.documentId
+                      }
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="timeline">
+                  {historyData.versions.map(
+                    (
+                      version,
+                      index
+                    ) => {
+                      const previousVersion =
+                        historyData.versions[
+                          index + 1
+                        ];
+
+                      const changes =
+                        getChanges(
+                          version,
+                          previousVersion
+                        );
+
+                      return (
+                        <article
+                          key={
+                            version.isCurrent
+                              ? `current-${version.version}`
+                              : version.historyId ||
+                                `history-${version.version}`
+                          }
+                          className={`versionCard ${
+                            version.isCurrent
+                              ? "currentVersion"
+                              : ""
+                          }`}
+                        >
+                          <div className="versionTop">
+                            <div className="versionIdentity">
+                              <span className="versionNumber">
+                                v
+                                {
+                                  version.version
+                                }
+                              </span>
+
+                              {version.isCurrent ? (
+                                <span className="currentBadge">
+                                  CURRENT
+                                </span>
+                              ) : (
+                                <span className="archivedBadge">
+                                  ARCHIVED
+                                </span>
+                              )}
+
+                              <span
+                                className={`status status-${version.status}`}
+                              >
+                                {
+                                  version.status
+                                }
+                              </span>
+
+                              <span
+                                className={`priority priority-${version.priority}`}
+                              >
+                                {
+                                  version.priority
+                                }
+                              </span>
+                            </div>
+
+                            <div className="versionDate">
+                              {formatDate(
+                                version.isCurrent
+                                  ? version.updatedAt
+                                  : version.archivedAt
+                              )}
+                            </div>
+                          </div>
+
+                          <h3>
+                            {
+                              version.title
+                            }
+                          </h3>
+
+                          <div className="historyCategory">
+                            {displayCategory(
+                              version.category
+                            )}
+
+                            {version.subcategory
+                              ? ` · ${displayCategory(
+                                  version.subcategory
+                                )}`
+                              : ""}
+                          </div>
+
+                          <div className="changeRow">
+                            {changes.map(
+                              (
+                                change
+                              ) => (
+                                <span
+                                  key={
+                                    change
+                                  }
+                                >
+                                  {
+                                    change
+                                  }
+                                </span>
+                              )
+                            )}
+                          </div>
+
+                          <div className="versionSection">
+                            <div className="versionLabel">
+                              EXPERT PRINCIPLE
+                            </div>
+
+                            <p>
+                              {
+                                version.guidance
+                              }
+                            </p>
+                          </div>
+
+                          {version.rationale && (
+                            <div className="versionSection">
+                              <div className="versionLabel">
+                                RATIONALE
+                              </div>
+
+                              <p>
+                                {
+                                  version.rationale
+                                }
+                              </p>
+                            </div>
+                          )}
+
+                          {Array.isArray(
+                            version.tags
+                          ) &&
+                            version.tags.length >
+                              0 && (
+                              <div className="historyTags">
+                                {version.tags.map(
+                                  (
+                                    tag
+                                  ) => (
+                                    <span
+                                      key={
+                                        tag
+                                      }
+                                    >
+                                      {
+                                        tag
+                                      }
+                                    </span>
+                                  )
+                                )}
+                              </div>
+                            )}
+
+                          {version.isCurrent && (
+                            <div className="currentUsage">
+                              Used{" "}
+                              {
+                                version.usageCount
+                              }{" "}
+                              times · Last
+                              used{" "}
+                              {formatDate(
+                                version.lastUsedAt
+                              )}
+                            </div>
+                          )}
+
+                          {!version.isCurrent &&
+                            version.archivedBy && (
+                              <div className="archiveMeta">
+                                Archived by{" "}
+                                {
+                                  version.archivedBy
+                                }
+                              </div>
+                            )}
+                        </article>
+                      );
+                    }
+                  )}
+                </div>
+
+                <div className="auditNote">
+                  Previous versions are
+                  retained for audit
+                  purposes. Editing the
+                  current principle
+                  creates a new version
+                  rather than overwriting
+                  the historical record.
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <GlobalStyle />
     </>
@@ -1415,12 +1976,7 @@ function GlobalStyle() {
         background:
           radial-gradient(
             circle at top left,
-            rgba(
-              63,
-              139,
-              125,
-              0.12
-            ),
+            rgba(63, 139, 125, 0.12),
             transparent 34%
           ),
           #071014;
@@ -2057,6 +2613,17 @@ function GlobalStyle() {
         font-size: 10px;
       }
 
+      .cardActions .historyButton {
+        color: #a7cec6;
+        border-color:
+          rgba(
+            132,
+            200,
+            186,
+            0.2
+          );
+      }
+
       .cardActions .danger {
         color: #b58d8d;
       }
@@ -2065,6 +2632,383 @@ function GlobalStyle() {
         padding: 30px 0;
         color: #647b77;
         font-size: 12px;
+      }
+
+      /*
+       * ===================================================
+       * HISTORY MODAL
+       * ===================================================
+       */
+
+      .modalBackdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background:
+          rgba(
+            0,
+            0,
+            0,
+            0.72
+          );
+        backdrop-filter:
+          blur(7px);
+        padding: 32px;
+        overflow-y: auto;
+      }
+
+      .historyModal {
+        width: min(
+          900px,
+          100%
+        );
+        margin: 0 auto;
+        border: 1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.09
+          );
+        border-radius: 18px;
+        background: #09161a;
+        box-shadow:
+          0 40px 100px
+          rgba(
+            0,
+            0,
+            0,
+            0.45
+          );
+        padding: 28px;
+      }
+
+      .historyHeader {
+        display: flex;
+        justify-content:
+          space-between;
+        gap: 20px;
+        align-items:
+          flex-start;
+      }
+
+      .historyHeader .eyebrow {
+        margin: 0;
+      }
+
+      .historyHeader h2 {
+        margin: 7px 0 5px;
+        font-size: 27px;
+      }
+
+      .historyId {
+        color: #77928c;
+        font-family:
+          ui-monospace,
+          monospace;
+        font-size: 10px;
+      }
+
+      .closeButton {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        border: 1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.08
+          );
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.03
+          );
+        color: #9bb0ac;
+        font-size: 20px;
+      }
+
+      .historyLoading,
+      .historyError {
+        margin-top: 25px;
+        padding: 25px;
+        color: #7d9691;
+        text-align: center;
+      }
+
+      .historyError {
+        color: #d29c9c;
+      }
+
+      .historySummary {
+        margin-top: 25px;
+        display: grid;
+        grid-template-columns:
+          150px
+          150px
+          1fr;
+        gap: 9px;
+      }
+
+      .historySummary > div {
+        padding: 15px;
+        border-radius: 10px;
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.025
+          );
+        border: 1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.05
+          );
+      }
+
+      .historySummary span {
+        display: block;
+        color: #566f69;
+        font-size: 8px;
+        letter-spacing:
+          0.11em;
+      }
+
+      .historySummary strong {
+        display: block;
+        margin-top: 7px;
+        color: #b8cac6;
+        font-size: 15px;
+      }
+
+      .historySummary .documentId {
+        font-size: 9px;
+        font-family:
+          ui-monospace,
+          monospace;
+        word-break:
+          break-all;
+      }
+
+      .timeline {
+        margin-top: 22px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .versionCard {
+        position: relative;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.065
+          );
+        background:
+          rgba(
+            0,
+            0,
+            0,
+            0.13
+          );
+      }
+
+      .versionCard.currentVersion {
+        border-color:
+          rgba(
+            124,
+            195,
+            181,
+            0.25
+          );
+        background:
+          rgba(
+            67,
+            126,
+            114,
+            0.06
+          );
+      }
+
+      .versionTop {
+        display: flex;
+        justify-content:
+          space-between;
+        gap: 15px;
+      }
+
+      .versionIdentity {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .versionNumber {
+        color: #d7e5e2;
+        font-family:
+          ui-monospace,
+          monospace;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .currentBadge,
+      .archivedBadge {
+        border-radius:
+          999px;
+        padding: 4px 7px;
+        font-size: 7px;
+        letter-spacing:
+          0.09em;
+      }
+
+      .currentBadge {
+        color: #9dd2c5;
+        background:
+          rgba(
+            86,
+            172,
+            148,
+            0.09
+          );
+      }
+
+      .archivedBadge {
+        color: #758b87;
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.035
+          );
+      }
+
+      .versionDate {
+        color: #566d68;
+        font-size: 9px;
+      }
+
+      .versionCard h3 {
+        margin:
+          14px 0 5px;
+        font-size: 17px;
+      }
+
+      .historyCategory {
+        color: #637d77;
+        font-size: 9px;
+      }
+
+      .changeRow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 13px;
+      }
+
+      .changeRow span {
+        padding: 5px 7px;
+        border-radius:
+          999px;
+        background:
+          rgba(
+            127,
+            178,
+            168,
+            0.07
+          );
+        color: #819d97;
+        font-size: 8px;
+      }
+
+      .versionSection {
+        margin-top: 17px;
+      }
+
+      .versionLabel {
+        color: #526a65;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing:
+          0.12em;
+      }
+
+      .versionSection p {
+        margin:
+          7px 0 0;
+        color: #aabbb8;
+        line-height: 1.65;
+        font-size: 12px;
+      }
+
+      .historyTags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 15px;
+      }
+
+      .historyTags span {
+        padding: 5px 7px;
+        border-radius:
+          999px;
+        border: 1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.055
+          );
+        color: #708a84;
+        font-size: 8px;
+      }
+
+      .currentUsage,
+      .archiveMeta {
+        margin-top: 17px;
+        padding-top: 13px;
+        border-top: 1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.045
+          );
+        color: #5f7772;
+        font-size: 9px;
+      }
+
+      .auditNote {
+        margin-top: 18px;
+        padding: 14px;
+        border-left: 2px solid
+          rgba(
+            123,
+            191,
+            178,
+            0.3
+          );
+        background:
+          rgba(
+            255,
+            255,
+            255,
+            0.018
+          );
+        color: #69827d;
+        font-size: 10px;
+        line-height: 1.6;
       }
 
       @media (
@@ -2079,14 +3023,16 @@ function GlobalStyle() {
         }
 
         .grid,
-        .usage {
+        .usage,
+        .historySummary {
           grid-template-columns:
             1fr;
         }
 
         .libraryHeader,
         .editorHeader,
-        .saveRow {
+        .saveRow,
+        .versionTop {
           flex-direction:
             column;
         }
@@ -2104,6 +3050,14 @@ function GlobalStyle() {
 
         .saveRow .primaryButton {
           width: 100%;
+        }
+
+        .modalBackdrop {
+          padding: 12px;
+        }
+
+        .historyModal {
+          padding: 20px;
         }
       }
     `}</style>
