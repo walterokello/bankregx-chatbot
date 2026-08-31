@@ -14,7 +14,8 @@ const EMPTY_DRAFT = {
     "control_design",
   subcategory: "",
   tags: "",
-  priority: "medium",
+  priority:
+    "medium",
   rationale: "",
   appliesTo:
     "control assessment",
@@ -503,7 +504,7 @@ export default function ExpertReview() {
        * Always create as DRAFT.
        *
        * Review feedback cannot directly influence
-       * BankRegX methodology.
+       * active BankRegX methodology.
        */
 
       const response =
@@ -657,6 +658,13 @@ export default function ExpertReview() {
             return true;
           }
 
+          const trace =
+            Array.isArray(
+              review.methodologyTrace
+            )
+              ? review.methodologyTrace
+              : [];
+
           const searchable = [
             review.question,
             review.aiResponse,
@@ -668,6 +676,18 @@ export default function ExpertReview() {
               []),
             ...(review.guidanceTitles ||
               []),
+            ...trace.map(
+              (item) =>
+                [
+                  item.guidanceId,
+                  item.title,
+                  item.category,
+                  item.subcategory,
+                  item.version
+                    ? `v${item.version}`
+                    : "",
+                ].join(" ")
+            ),
           ]
             .join(" ")
             .toLowerCase();
@@ -720,6 +740,14 @@ export default function ExpertReview() {
     } catch {
       return value;
     }
+  }
+
+  function formatPriority(
+    value
+  ) {
+    return String(
+      value || ""
+    ).toUpperCase();
   }
 
   /*
@@ -1054,6 +1082,23 @@ export default function ExpertReview() {
                     draftReviewId ===
                     review.id;
 
+                  const trace =
+                    Array.isArray(
+                      review.methodologyTrace
+                    )
+                      ? review.methodologyTrace
+                      : [];
+
+                  const exactTrace =
+                    review.methodologyTraceSchemaVersion ===
+                    1;
+
+                  const hasLegacyVersions =
+                    trace.some(
+                      (item) =>
+                        !item.version
+                    );
+
                   return (
                     <article
                       className="reviewCard"
@@ -1089,6 +1134,12 @@ export default function ExpertReview() {
                                 review.category
                               )}
                             </span>
+
+                            {exactTrace && (
+                              <span className="traceCapturedBadge">
+                                VERSION TRACE
+                              </span>
+                            )}
                           </div>
 
                           <div className="date">
@@ -1183,7 +1234,9 @@ export default function ExpertReview() {
                       )}
 
                       {/*
+                       * =================================================
                        * INTELLIGENCE TRACE
+                       * =================================================
                        */}
 
                       {expanded && (
@@ -1204,37 +1257,108 @@ export default function ExpertReview() {
 
                             <span>
                               {
-                                review.guidanceIds
-                                  .length
+                                trace.length
                               }{" "}
                               principles
                             </span>
                           </div>
 
-                          {review.guidanceIds.length >
+                          {exactTrace && (
+                            <div className="traceAssurance">
+                              <span className="traceAssuranceDot" />
+
+                              Exact
+                              methodology
+                              versions were
+                              captured with
+                              the original
+                              BankRegX
+                              assessment.
+                            </div>
+                          )}
+
+                          {trace.length >
                           0 ? (
                             <div className="guidanceTrace">
-                              {review.guidanceIds.map(
+                              {trace.map(
                                 (
-                                  guidanceId,
+                                  item,
                                   index
                                 ) => (
                                   <div
-                                    key={`${guidanceId}-${index}`}
+                                    key={`${item.guidanceId}-${item.version || "legacy"}-${index}`}
+                                    className="traceItem"
                                   >
-                                    <span>
-                                      {
-                                        guidanceId
-                                      }
-                                    </span>
+                                    <div className="traceIdentity">
+                                      <span className="traceGuidanceId">
+                                        {
+                                          item.guidanceId
+                                        }
+
+                                        {item.version
+                                          ? ` · v${item.version}`
+                                          : " · version not recorded"}
+                                      </span>
+
+                                      {item.priority && (
+                                        <small
+                                          className={`tracePriority tracePriority-${String(
+                                            item.priority
+                                          ).toLowerCase()}`}
+                                        >
+                                          {formatPriority(
+                                            item.priority
+                                          )}
+                                        </small>
+                                      )}
+                                    </div>
 
                                     <strong>
-                                      {review
-                                        .guidanceTitles[
-                                        index
-                                      ] ||
+                                      {item.title ||
                                         "Expert principle"}
                                     </strong>
+
+                                    {(item.category ||
+                                      item.subcategory) && (
+                                      <div className="traceCategory">
+                                        {item.category
+                                          ? formatCategory(
+                                              item.category
+                                            )
+                                          : ""}
+
+                                        {item.subcategory
+                                          ? ` · ${formatCategory(
+                                              item.subcategory
+                                            )}`
+                                          : ""}
+                                      </div>
+                                    )}
+
+                                    <div className="traceDetails">
+                                      {item.documentId && (
+                                        <span>
+                                          Document:{" "}
+                                          {
+                                            item.documentId
+                                          }
+                                        </span>
+                                      )}
+
+                                      {Number.isFinite(
+                                        Number(
+                                          item.relevanceScore
+                                        )
+                                      ) && (
+                                        <span>
+                                          Relevance
+                                          score:{" "}
+                                          {
+                                            item.relevanceScore
+                                          }
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 )
                               )}
@@ -1246,6 +1370,27 @@ export default function ExpertReview() {
                               trace was
                               recorded for
                               this response.
+                            </div>
+                          )}
+
+                          {hasLegacyVersions && (
+                            <div className="legacyNotice">
+                              This is a
+                              legacy
+                              assessment.
+                              One or more
+                              exact
+                              methodology
+                              versions were
+                              not recorded
+                              when the
+                              assessment was
+                              generated.
+                              BankRegX has
+                              not inferred a
+                              historical
+                              version
+                              retrospectively.
                             </div>
                           )}
 
@@ -1270,6 +1415,14 @@ export default function ExpertReview() {
                               {review.usedWebSearch
                                 ? "Yes"
                                 : "No"}
+                            </span>
+
+                            <span>
+                              Trace schema:
+                              {" "}
+                              {review.methodologyTraceSchemaVersion
+                                ? `v${review.methodologyTraceSchemaVersion}`
+                                : "Legacy"}
                             </span>
                           </div>
                         </div>
@@ -2325,7 +2478,8 @@ function GlobalStyle() {
 
       .feedbackType,
       .reviewStatus,
-      .reviewCategory {
+      .reviewCategory,
+      .traceCapturedBadge {
         border-radius:
           999px;
         padding:
@@ -2373,6 +2527,26 @@ function GlobalStyle() {
             255,
             255,
             0.065
+          );
+      }
+
+      .traceCapturedBadge {
+        color:
+          #a8d8ce;
+        border:
+          1px solid
+          rgba(
+            127,
+            197,
+            183,
+            0.17
+          );
+        background:
+          rgba(
+            83,
+            149,
+            136,
+            0.07
           );
       }
 
@@ -2555,23 +2729,23 @@ function GlobalStyle() {
       }
 
       /*
-       * TRACE
+       * INTELLIGENCE TRACE
        */
 
       .tracePanel {
         margin-top:
           22px;
         padding:
-          18px;
+          20px;
         border-radius:
-          11px;
+          12px;
         border:
           1px solid
           rgba(
             137,
             202,
             189,
-            0.1
+            0.12
           );
         background:
           rgba(
@@ -2612,39 +2786,108 @@ function GlobalStyle() {
           0;
       }
 
+      .traceAssurance {
+        display:
+          flex;
+        align-items:
+          center;
+        gap:
+          8px;
+        margin-top:
+          14px;
+        padding:
+          10px 12px;
+        border:
+          1px solid
+          rgba(
+            126,
+            195,
+            181,
+            0.13
+          );
+        border-radius:
+          8px;
+        background:
+          rgba(
+            75,
+            139,
+            126,
+            0.055
+          );
+        color:
+          #92b5ad;
+        font-size:
+          9px;
+        line-height:
+          1.5;
+      }
+
+      .traceAssuranceDot {
+        width:
+          6px;
+        height:
+          6px;
+        flex-shrink:
+          0;
+        border-radius:
+          50%;
+        background:
+          #80c5b5;
+        box-shadow:
+          0 0 8px
+          rgba(
+            128,
+            197,
+            181,
+            0.45
+          );
+      }
+
       .guidanceTrace {
         margin-top:
           14px;
         display:
           grid;
         gap:
-          7px;
+          8px;
       }
 
-      .guidanceTrace > div {
-        display:
-          grid;
-        grid-template-columns:
-          140px
-          1fr;
-        gap:
-          12px;
+      .traceItem {
         padding:
-          10px;
+          13px;
         border-radius:
-          8px;
+          9px;
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.055
+          );
         background:
           rgba(
             255,
             255,
             255,
-            0.028
+            0.025
           );
       }
 
-      .guidanceTrace span {
+      .traceIdentity {
+        display:
+          flex;
+        align-items:
+          center;
+        justify-content:
+          space-between;
+        gap:
+          12px;
+      }
+
+      .traceGuidanceId {
         color:
-          #82a099;
+          #9ac2b9;
         font-family:
           ui-monospace,
           monospace;
@@ -2652,13 +2895,98 @@ function GlobalStyle() {
           9px;
       }
 
-      .guidanceTrace strong {
-        color:
-          #a9bbb7;
+      .tracePriority {
         font-size:
-          10px;
+          7px;
         font-weight:
-          600;
+          800;
+        letter-spacing:
+          0.08em;
+      }
+
+      .tracePriority-critical {
+        color:
+          #e1a3a3;
+      }
+
+      .tracePriority-high {
+        color:
+          #dec58d;
+      }
+
+      .tracePriority-medium {
+        color:
+          #9eb2ae;
+      }
+
+      .tracePriority-low {
+        color:
+          #7a918d;
+      }
+
+      .traceItem > strong {
+        display:
+          block;
+        margin-top:
+          7px;
+        color:
+          #c8d8d4;
+        font-size:
+          11px;
+        font-weight:
+          650;
+      }
+
+      .traceCategory {
+        margin-top:
+          5px;
+        color:
+          #78918b;
+        font-size:
+          8px;
+      }
+
+      .traceDetails {
+        display:
+          flex;
+        flex-wrap:
+          wrap;
+        gap:
+          14px;
+        margin-top:
+          9px;
+        color:
+          #647d77;
+        font-size:
+          8px;
+      }
+
+      .legacyNotice {
+        margin-top:
+          14px;
+        padding:
+          11px 12px;
+        border-left:
+          2px solid
+          rgba(
+            203,
+            169,
+            94,
+            0.38
+          );
+        background:
+          rgba(
+            171,
+            133,
+            55,
+            0.045
+          );
+        color:
+          #ad9e77;
+        font-size:
+          9px;
+        line-height:
+          1.6;
       }
 
       .traceMeta {
@@ -2669,9 +2997,19 @@ function GlobalStyle() {
         gap:
           16px;
         margin-top:
-          14px;
+          15px;
+        padding-top:
+          13px;
+        border-top:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.05
+          );
         color:
-          #6f8882;
+          #718a84;
         font-size:
           9px;
       }
@@ -2683,6 +3021,8 @@ function GlobalStyle() {
           #718a84;
         font-size:
           10px;
+        line-height:
+          1.55;
       }
 
       /*
@@ -2983,9 +3323,11 @@ function GlobalStyle() {
             100%;
         }
 
-        .guidanceTrace > div {
-          grid-template-columns:
-            1fr;
+        .traceIdentity {
+          align-items:
+            flex-start;
+          flex-direction:
+            column;
         }
       }
 

@@ -48,6 +48,81 @@ function buildBaseUrlFromRequest(req) {
 
 /*
  * =========================================================
+ * METHODOLOGY TRACE HELPERS
+ * =========================================================
+ */
+
+function getGuidanceVersion(item) {
+  const version = Number(
+    item?.version
+  );
+
+  if (
+    !Number.isFinite(version) ||
+    version < 1
+  ) {
+    return 1;
+  }
+
+  return Math.trunc(version);
+}
+
+function buildMethodologyTrace(
+  guidance
+) {
+  if (
+    !Array.isArray(guidance) ||
+    guidance.length === 0
+  ) {
+    return [];
+  }
+
+  return guidance.map(
+    (item) => ({
+      guidanceId:
+        item.guidanceId ||
+        item.id,
+
+      documentId:
+        item.id,
+
+      version:
+        getGuidanceVersion(
+          item
+        ),
+
+      title:
+        item.title ||
+        null,
+
+      category:
+        item.category ||
+        null,
+
+      subcategory:
+        item.subcategory ||
+        null,
+
+      priority:
+        item.priority ||
+        null,
+
+      relevanceScore:
+        Number.isFinite(
+          Number(
+            item.relevanceScore
+          )
+        )
+          ? Number(
+              item.relevanceScore
+            )
+          : null,
+    })
+  );
+}
+
+/*
+ * =========================================================
  * EXPERT GUIDANCE
  * =========================================================
  */
@@ -476,7 +551,9 @@ No specifically relevant approved BankRegX Expert Guidance was retrieved for thi
         `${index + 1}. ${
           item.guidanceId ||
           item.id
-        }`
+        } · v${getGuidanceVersion(
+          item
+        )}`
       );
 
       lines.push(
@@ -1315,7 +1392,7 @@ Do not assume a threshold is appropriate merely because it sounds consistent wit
 
 For example:
 
-A risk described as "high-value payment risk" does not automatically establish that £50,000 is the appropriate threshold.
+A risk described as "high-value payment risk" does not automatically establish that Â£50,000 is the appropriate threshold.
 
 Assess whether:
 
@@ -1591,6 +1668,16 @@ The objective is to help a professional make a better and more defensible judgem
       );
 
     /*
+     * Capture the exact methodology snapshot used for this
+     * assessment before any usage counters or future edits
+     * can change the underlying guidance records.
+     */
+    const methodologyTrace =
+      buildMethodologyTrace(
+        expertGuidance
+      );
+
+    /*
      * =====================================================
      * 7. SAVE RESPONSE + INTELLIGENCE TRACE
      * =====================================================
@@ -1624,6 +1711,17 @@ The objective is to help a professional make a better and more defensible judgem
                 (item) =>
                   item.id
               ),
+
+            guidanceVersions:
+              methodologyTrace.map(
+                (item) =>
+                  item.version
+              ),
+
+            methodologyTraceSchemaVersion:
+              1,
+
+            methodologyTrace,
 
             guidanceTitles:
               expertGuidance.map(
@@ -1726,8 +1824,16 @@ The objective is to help a professional make a better and more defensible judgem
               id:
                 item.id,
 
+              documentId:
+                item.id,
+
               guidanceId:
                 item.guidanceId,
+
+              version:
+                getGuidanceVersion(
+                  item
+                ),
 
               title:
                 item.title,
@@ -1745,6 +1851,11 @@ The objective is to help a professional make a better and more defensible judgem
                 item.relevanceScore,
             })
           ),
+
+        methodologyTraceSchemaVersion:
+          1,
+
+        methodologyTrace,
 
         detectedCategories,
 
@@ -1765,6 +1876,9 @@ The objective is to help a professional make a better and more defensible judgem
 
           expertGuidanceCount:
             expertGuidance.length,
+
+          methodologyTraceCaptured:
+            true,
 
           historyIncluded:
             false,
