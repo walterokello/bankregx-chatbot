@@ -2,53 +2,32 @@ import Parser from "rss-parser";
 
 const parser = new Parser({
   timeout: 10000,
-
   headers: {
     "User-Agent":
       "Mozilla/5.0 (compatible; BankRegX/1.0; +https://www.bankregx.com)",
-
     Accept:
       "application/rss+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.8",
   },
 });
 
-/*
- * =========================================================
- * REGULATORY FEEDS
- * =========================================================
- */
-
 const FEEDS = [
   {
     name: "Federal Reserve",
-    url:
-      "https://www.federalreserve.gov/feeds/press_all.xml",
+    url: "https://www.federalreserve.gov/feeds/press_all.xml",
   },
-
   {
     name: "FCA",
-    url:
-      "https://www.fca.org.uk/news/rss.xml",
+    url: "https://www.fca.org.uk/news/rss.xml",
   },
-
   {
     name: "ECB",
-    url:
-      "https://www.ecb.europa.eu/rss/press.html",
+    url: "https://www.ecb.europa.eu/rss/press.html",
   },
 ];
 
 const ITEMS_PER_FEED = 5;
-
-/*
- * Article-page enrichment is only used when the RSS feed
- * does not contain enough usable source information.
- */
-
 const ARTICLE_TIMEOUT_MS = 7000;
-
 const MIN_USEFUL_SUMMARY_LENGTH = 90;
-
 const MAX_SUMMARY_LENGTH = 900;
 
 const BOILERPLATE_PHRASES = [
@@ -65,12 +44,6 @@ const BOILERPLATE_PHRASES = [
   "javascript is disabled",
   "enable javascript",
 ];
-
-/*
- * =========================================================
- * TEXT HELPERS
- * =========================================================
- */
 
 function cleanWhitespace(value) {
   return String(value || "")
@@ -98,67 +71,34 @@ function decodeHtmlEntities(value) {
 
   return String(value || "").replace(
     /&(#x?[0-9a-f]+|[a-z]+);/gi,
-
     (match, entity) => {
-      const key =
-        String(entity).toLowerCase();
-
-      /*
-       * Hexadecimal entities
-       */
+      const key = String(entity).toLowerCase();
 
       if (key.startsWith("#x")) {
-        const codePoint =
-          Number.parseInt(
-            key.slice(2),
-            16
-          );
+        const codePoint = Number.parseInt(key.slice(2), 16);
 
-        if (
-          Number.isFinite(
-            codePoint
-          )
-        ) {
+        if (Number.isFinite(codePoint)) {
           try {
-            return String.fromCodePoint(
-              codePoint
-            );
+            return String.fromCodePoint(codePoint);
           } catch {
             return match;
           }
         }
       }
-
-      /*
-       * Decimal entities
-       */
 
       if (key.startsWith("#")) {
-        const codePoint =
-          Number.parseInt(
-            key.slice(1),
-            10
-          );
+        const codePoint = Number.parseInt(key.slice(1), 10);
 
-        if (
-          Number.isFinite(
-            codePoint
-          )
-        ) {
+        if (Number.isFinite(codePoint)) {
           try {
-            return String.fromCodePoint(
-              codePoint
-            );
+            return String.fromCodePoint(codePoint);
           } catch {
             return match;
           }
         }
       }
 
-      return (
-        named[key] ??
-        match
-      );
+      return named[key] ?? match;
     }
   );
 }
@@ -167,119 +107,71 @@ function stripHtml(value) {
   return cleanWhitespace(
     decodeHtmlEntities(
       String(value || "")
-
-        /*
-         * Remove non-content blocks.
-         */
-
-        .replace(
-          /<script\b[^>]*>[\s\S]*?<\/script>/gi,
-          " "
-        )
-
-        .replace(
-          /<style\b[^>]*>[\s\S]*?<\/style>/gi,
-          " "
-        )
-
-        .replace(
-          /<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,
-          " "
-        )
-
-        .replace(
-          /<svg\b[^>]*>[\s\S]*?<\/svg>/gi,
-          " "
-        )
-
-        .replace(
-          /<!--[\s\S]*?-->/g,
-          " "
-        )
-
-        /*
-         * Preserve natural word breaks.
-         */
-
-        .replace(
-          /<br\s*\/?\s*>/gi,
-          " "
-        )
-
-        .replace(
-          /<\/p>/gi,
-          " "
-        )
-
-        /*
-         * Strip remaining tags.
-         */
-
-        .replace(
-          /<[^>]+>/g,
-          " "
-        )
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+        .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ")
+        .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, " ")
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/<br\s*\/?\s*>/gi, " ")
+        .replace(/<\/p>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
     )
   );
 }
 
 function isBoilerplate(value) {
-  const lower =
-    cleanWhitespace(
-      value
-    ).toLowerCase();
+  const lower = cleanWhitespace(value).toLowerCase();
 
-  return BOILERPLATE_PHRASES.some(
-    (phrase) =>
-      lower.includes(
-        phrase
-      )
+  return BOILERPLATE_PHRASES.some((phrase) =>
+    lower.includes(phrase)
   );
 }
 
-function isUsefulSummary(
-  value,
-  title = ""
-) {
-  const text =
-    cleanWhitespace(
-      value
-    );
+function isGenericRegulatorDescription(value) {
+  const text = cleanWhitespace(value).toLowerCase();
 
-  if (
-    !text ||
-    text.length <
-      MIN_USEFUL_SUMMARY_LENGTH
-  ) {
+  if (!text) {
+    return true;
+  }
+
+  const genericPatterns = [
+    "the european central bank is",
+    "the european central bank (ecb) is",
+    "the ecb is the central bank",
+    "central bank for the euro",
+    "central bank of the european union",
+    "our main task is to maintain price stability",
+    "we work to keep prices stable",
+    "maintain price stability in the euro area",
+    "official website of the european central bank",
+    "the european central bank manages the euro",
+  ];
+
+  return genericPatterns.some((pattern) =>
+    text.includes(pattern)
+  );
+}
+
+function isUsefulSummary(value, title = "") {
+  const text = cleanWhitespace(value);
+
+  if (!text || text.length < MIN_USEFUL_SUMMARY_LENGTH) {
     return false;
   }
 
   if (
-    isBoilerplate(
-      text
-    )
+    isBoilerplate(text) ||
+    isGenericRegulatorDescription(text)
   ) {
     return false;
   }
 
-  const normalizedText =
-    text.toLowerCase();
-
-  const normalizedTitle =
-    cleanWhitespace(
-      title
-    ).toLowerCase();
-
-  /*
-   * A title repeated as the
-   * "description" is not enough
-   * information for an assessment.
-   */
+  const normalizedText = text.toLowerCase();
+  const normalizedTitle = cleanWhitespace(title).toLowerCase();
 
   if (
     normalizedTitle &&
-    normalizedText ===
-      normalizedTitle
+    normalizedText === normalizedTitle
   ) {
     return false;
   }
@@ -289,63 +181,29 @@ function isUsefulSummary(
 
 function truncateSummary(
   value,
-  maxLength =
-    MAX_SUMMARY_LENGTH
+  maxLength = MAX_SUMMARY_LENGTH
 ) {
-  const text =
-    cleanWhitespace(
-      value
-    );
+  const text = cleanWhitespace(value);
 
-  if (
-    text.length <=
-    maxLength
-  ) {
+  if (text.length <= maxLength) {
     return text;
   }
 
-  const shortened =
-    text.slice(
-      0,
-      maxLength
-    );
+  const shortened = text.slice(0, maxLength);
 
-  /*
-   * Prefer ending at a
-   * complete sentence.
-   */
+  const sentenceEnd = Math.max(
+    shortened.lastIndexOf(". "),
+    shortened.lastIndexOf("! "),
+    shortened.lastIndexOf("? ")
+  );
 
-  const sentenceEnd =
-    Math.max(
-      shortened.lastIndexOf(
-        ". "
-      ),
-
-      shortened.lastIndexOf(
-        "! "
-      ),
-
-      shortened.lastIndexOf(
-        "? "
-      )
-    );
-
-  if (
-    sentenceEnd >
-    maxLength * 0.55
-  ) {
+  if (sentenceEnd > maxLength * 0.55) {
     return shortened
-      .slice(
-        0,
-        sentenceEnd + 1
-      )
+      .slice(0, sentenceEnd + 1)
       .trim();
   }
 
-  const lastSpace =
-    shortened.lastIndexOf(
-      " "
-    );
+  const lastSpace = shortened.lastIndexOf(" ");
 
   return `${shortened
     .slice(
@@ -357,39 +215,29 @@ function truncateSummary(
     .trim()}…`;
 }
 
-/*
- * =========================================================
- * HTML METADATA EXTRACTION
- * =========================================================
- */
-
 function getAttribute(
   tag,
   attributeName
 ) {
-  const quoted =
-    tag.match(
-      new RegExp(
-        `${attributeName}\\s*=\\s*["']([^"']*)["']`,
-        "i"
-      )
-    );
+  const quoted = tag.match(
+    new RegExp(
+      `${attributeName}\\s*=\\s*["']([^"']*)["']`,
+      "i"
+    )
+  );
 
-  if (
-    quoted?.[1]
-  ) {
+  if (quoted?.[1]) {
     return decodeHtmlEntities(
       quoted[1]
     );
   }
 
-  const unquoted =
-    tag.match(
-      new RegExp(
-        `${attributeName}\\s*=\\s*([^\\s>]+)`,
-        "i"
-      )
-    );
+  const unquoted = tag.match(
+    new RegExp(
+      `${attributeName}\\s*=\\s*([^\\s>]+)`,
+      "i"
+    )
+  );
 
   return unquoted?.[1]
     ? decodeHtmlEntities(
@@ -398,20 +246,11 @@ function getAttribute(
     : "";
 }
 
-function extractMetaDescription(
-  html
-) {
+function extractMetaDescription(html) {
   const metaTags =
-    String(
-      html || ""
-    ).match(
+    String(html || "").match(
       /<meta\b[^>]*>/gi
     ) || [];
-
-  /*
-   * Standard description first,
-   * then social-sharing descriptions.
-   */
 
   const preferred = [
     "description",
@@ -419,39 +258,20 @@ function extractMetaDescription(
     "twitter:description",
   ];
 
-  for (
-    const wanted of
-    preferred
-  ) {
-    for (
-      const tag of
-      metaTags
-    ) {
-      const key =
-        cleanWhitespace(
-          getAttribute(
-            tag,
-            "name"
-          ) ||
-            getAttribute(
-              tag,
-              "property"
-            )
-        ).toLowerCase();
+  for (const wanted of preferred) {
+    for (const tag of metaTags) {
+      const key = cleanWhitespace(
+        getAttribute(tag, "name") ||
+          getAttribute(tag, "property")
+      ).toLowerCase();
 
-      if (
-        key !== wanted
-      ) {
+      if (key !== wanted) {
         continue;
       }
 
-      const content =
-        stripHtml(
-          getAttribute(
-            tag,
-            "content"
-          )
-        );
+      const content = stripHtml(
+        getAttribute(tag, "content")
+      );
 
       if (content) {
         return content;
@@ -462,36 +282,15 @@ function extractMetaDescription(
   return "";
 }
 
-/*
- * =========================================================
- * JSON-LD EXTRACTION
- * =========================================================
- *
- * Many regulator websites expose article/speech descriptions
- * through structured JSON-LD metadata.
- * =========================================================
- */
-
-function findJsonLdDescription(
-  value
-) {
+function findJsonLdDescription(value) {
   if (!value) {
     return "";
   }
 
-  if (
-    Array.isArray(
-      value
-    )
-  ) {
-    for (
-      const item of
-      value
-    ) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
       const found =
-        findJsonLdDescription(
-          item
-        );
+        findJsonLdDescription(item);
 
       if (found) {
         return found;
@@ -501,10 +300,7 @@ function findJsonLdDescription(
     return "";
   }
 
-  if (
-    typeof value !==
-    "object"
-  ) {
+  if (typeof value !== "object") {
     return "";
   }
 
@@ -514,23 +310,16 @@ function findJsonLdDescription(
     value.articleBody,
   ];
 
-  for (
-    const candidate of
-    directCandidates
-  ) {
+  for (const candidate of directCandidates) {
     const text =
-      stripHtml(
-        candidate
-      );
+      stripHtml(candidate);
 
     if (text) {
       return text;
     }
   }
 
-  if (
-    value["@graph"]
-  ) {
+  if (value["@graph"]) {
     return findJsonLdDescription(
       value["@graph"]
     );
@@ -539,21 +328,14 @@ function findJsonLdDescription(
   return "";
 }
 
-function extractJsonLdDescription(
-  html
-) {
+function extractJsonLdDescription(html) {
   const scripts = [
-    ...String(
-      html || ""
-    ).matchAll(
+    ...String(html || "").matchAll(
       /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
     ),
   ];
 
-  for (
-    const match of
-    scripts
-  ) {
+  for (const match of scripts) {
     const raw =
       match?.[1]?.trim();
 
@@ -563,52 +345,28 @@ function extractJsonLdDescription(
 
     try {
       const parsed =
-        JSON.parse(
-          raw
-        );
+        JSON.parse(raw);
 
       const description =
-        findJsonLdDescription(
-          parsed
-        );
+        findJsonLdDescription(parsed);
 
-      if (
-        description
-      ) {
+      if (description) {
         return description;
       }
     } catch {
-      /*
-       * Some pages contain malformed
-       * or non-standard JSON-LD.
-       *
-       * Ignore it and continue to
-       * normal page-content extraction.
-       */
+      // Ignore malformed JSON-LD.
     }
   }
 
   return "";
 }
 
-/*
- * =========================================================
- * ARTICLE PARAGRAPH EXTRACTION
- * =========================================================
- */
-
 function extractParagraphSummary(
-  html
+  html,
+  title = ""
 ) {
   const source =
-    String(
-      html || ""
-    );
-
-  /*
-   * Prefer the semantic article/main
-   * section where available.
-   */
+    String(html || "");
 
   const articleMatch =
     source.match(
@@ -625,66 +383,91 @@ function extractParagraphSummary(
     mainMatch?.[1] ||
     source;
 
+  const titleText =
+    cleanWhitespace(title).toLowerCase();
+
   const paragraphs = [
     ...contentArea.matchAll(
       /<p\b[^>]*>([\s\S]*?)<\/p>/gi
     ),
   ]
-
-    .map(
-      (match) =>
-        stripHtml(
-          match[1]
-        )
+    .map((match) =>
+      stripHtml(match[1])
     )
-
-    /*
-     * Ignore tiny navigation / label text.
-     */
 
     .filter(
       (text) =>
-        text.length >= 60
+        text.length >= 40
     )
-
-    /*
-     * Ignore cookie and navigation language.
-     */
 
     .filter(
       (text) =>
-        !isBoilerplate(
-          text
-        )
-    );
+        !isBoilerplate(text)
+    )
 
-  if (
-    paragraphs.length ===
-    0
-  ) {
+    .filter(
+      (text) =>
+        !isGenericRegulatorDescription(text)
+    )
+
+    .filter((text) => {
+      if (!titleText) {
+        return true;
+      }
+
+      return (
+        text.toLowerCase() !==
+        titleText
+      );
+    });
+
+  if (paragraphs.length === 0) {
     return "";
   }
 
-  let combined = "";
-
   /*
-   * Usually the first 1–3 substantive
-   * paragraphs are enough to give
-   * BankRegX source context.
+   * Prefer paragraphs that look like
+   * substantive regulatory content.
    */
 
-  for (
-    const paragraph of
-    paragraphs
-  ) {
+  const substantive =
+    paragraphs.filter((paragraph) => {
+      const lower =
+        paragraph.toLowerCase();
+
+      return (
+        lower.includes("speech") ||
+        lower.includes("slides") ||
+        lower.includes("remarks") ||
+        lower.includes("press release") ||
+        lower.includes("conference") ||
+        lower.includes("monetary") ||
+        lower.includes("financial") ||
+        lower.includes("inflation") ||
+        lower.includes("payment") ||
+        lower.includes("bank") ||
+        lower.includes("policy") ||
+        lower.includes("market") ||
+        lower.includes("econom") ||
+        paragraph.length >= 120
+      );
+    });
+
+  const chosen =
+    substantive.length > 0
+      ? substantive
+      : paragraphs;
+
+  let combined = "";
+
+  for (const paragraph of chosen) {
     combined =
       combined
         ? `${combined} ${paragraph}`
         : paragraph;
 
     if (
-      combined.length >=
-      500
+      combined.length >= 550
     ) {
       break;
     }
@@ -695,58 +478,79 @@ function extractParagraphSummary(
   );
 }
 
-/*
- * =========================================================
- * BEST SOURCE-PAGE SUMMARY
- * =========================================================
- */
-
 function extractBestPageSummary(
   html,
   title
 ) {
-  const candidates = [
-    extractMetaDescription(
-      html
-    ),
+  /*
+   * 1. Prefer actual article /
+   * speech content.
+   */
 
+  const articleSummary =
+    extractParagraphSummary(
+      html,
+      title
+    );
+
+  if (
+    isUsefulSummary(
+      articleSummary,
+      title
+    )
+  ) {
+    return truncateSummary(
+      articleSummary
+    );
+  }
+
+  /*
+   * 2. Then try structured
+   * article metadata.
+   */
+
+  const jsonLdSummary =
     extractJsonLdDescription(
       html
-    ),
+    );
 
-    extractParagraphSummary(
-      html
-    ),
-  ];
-
-  for (
-    const candidate of
-    candidates
+  if (
+    isUsefulSummary(
+      jsonLdSummary,
+      title
+    )
   ) {
-    if (
-      isUsefulSummary(
-        candidate,
-        title
-      )
-    ) {
-      return truncateSummary(
-        candidate
-      );
-    }
+    return truncateSummary(
+      jsonLdSummary
+    );
+  }
+
+  /*
+   * 3. Meta description is LAST
+   * because ECB pages can contain
+   * generic organisation text.
+   */
+
+  const metaSummary =
+    extractMetaDescription(
+      html
+    );
+
+  if (
+    isUsefulSummary(
+      metaSummary,
+      title
+    )
+  ) {
+    return truncateSummary(
+      metaSummary
+    );
   }
 
   return "";
 }
 
-/*
- * =========================================================
- * RSS SUMMARY
- * =========================================================
- */
-
-function getRssSummary(
-  item
-) {
+function getRssSummary(item) {
   const candidates = [
     item?.contentSnippet,
     item?.summary,
@@ -757,14 +561,9 @@ function getRssSummary(
     ],
   ];
 
-  for (
-    const candidate of
-    candidates
-  ) {
+  for (const candidate of candidates) {
     const text =
-      stripHtml(
-        candidate
-      );
+      stripHtml(candidate);
 
     if (text) {
       return truncateSummary(
@@ -775,12 +574,6 @@ function getRssSummary(
 
   return "";
 }
-
-/*
- * =========================================================
- * URL NORMALISATION
- * =========================================================
- */
 
 function toAbsoluteUrl(
   value,
@@ -796,17 +589,9 @@ function toAbsoluteUrl(
       baseUrl
     ).toString();
   } catch {
-    return String(
-      value
-    );
+    return String(value);
   }
 }
-
-/*
- * =========================================================
- * FETCH REGULATOR SOURCE PAGE
- * =========================================================
- */
 
 async function fetchArticleSummary(
   url,
@@ -831,14 +616,9 @@ async function fetchArticleSummary(
       await fetch(
         url,
         {
-          method:
-            "GET",
-
-          redirect:
-            "follow",
-
-          signal:
-            controller.signal,
+          method: "GET",
+          redirect: "follow",
+          signal: controller.signal,
 
           headers: {
             "User-Agent":
@@ -856,9 +636,7 @@ async function fetchArticleSummary(
         }
       );
 
-    if (
-      !response.ok
-    ) {
+    if (!response.ok) {
       console.warn(
         `[regulatory-news] Source page returned ${response.status}: ${url}`
       );
@@ -870,12 +648,6 @@ async function fetchArticleSummary(
       response.headers.get(
         "content-type"
       ) || "";
-
-    /*
-     * Don't try to parse PDFs,
-     * images or other binary content
-     * as HTML.
-     */
 
     if (
       !contentType
@@ -901,7 +673,6 @@ async function fetchArticleSummary(
     ) {
       console.warn(
         `[regulatory-news] Unable to enrich source page ${url}:`,
-
         error?.message ||
           error
       );
@@ -909,17 +680,9 @@ async function fetchArticleSummary(
 
     return "";
   } finally {
-    clearTimeout(
-      timer
-    );
+    clearTimeout(timer);
   }
 }
-
-/*
- * =========================================================
- * ENRICH ONE REGULATORY DEVELOPMENT
- * =========================================================
- */
 
 async function enrichItem(
   feed,
@@ -939,43 +702,44 @@ async function enrichItem(
     );
 
   const rssSummary =
-    getRssSummary(
-      item
-    );
+    getRssSummary(item);
 
-  let summary =
-    rssSummary;
-
+  let summary = "";
   let summarySource =
-    rssSummary
-      ? "rss"
-      : "none";
+    "none";
 
   /*
-   * IMPORTANT:
-   *
-   * If the regulator's RSS item contains no meaningful
-   * description, fetch the regulator's actual source page.
-   *
-   * This is the key change for ECB speeches / publications.
+   * Only accept RSS text when
+   * it is genuinely useful.
    */
 
   if (
-    !isUsefulSummary(
+    isUsefulSummary(
       rssSummary,
       title
-    ) &&
-    link
+    )
   ) {
+    summary =
+      rssSummary;
+
+    summarySource =
+      "rss";
+  }
+
+  /*
+   * If RSS is absent, too short,
+   * generic or organisation-level,
+   * read the actual regulator page.
+   */
+
+  if (!summary && link) {
     const pageSummary =
       await fetchArticleSummary(
         link,
         title
       );
 
-    if (
-      pageSummary
-    ) {
+    if (pageSummary) {
       summary =
         pageSummary;
 
@@ -983,13 +747,6 @@ async function enrichItem(
         "source_page";
     }
   }
-
-  /*
-   * Return several normalised summary fields.
-   *
-   * This preserves compatibility with different versions
-   * of the BankRegX Regulatory Intelligence UI.
-   */
 
   return {
     title,
@@ -1016,10 +773,6 @@ async function enrichItem(
       item?.author ||
       null,
 
-    /*
-     * Normalised content.
-     */
-
     summary:
       summary || "",
 
@@ -1029,11 +782,6 @@ async function enrichItem(
     contentSnippet:
       summary || "",
 
-    /*
-     * Metadata useful for debugging and
-     * future BankRegX enhancements.
-     */
-
     summarySource,
 
     enrichedFromSourcePage:
@@ -1041,16 +789,6 @@ async function enrichItem(
       "source_page",
   };
 }
-
-/*
- * =========================================================
- * CONTROLLED CONCURRENCY
- * =========================================================
- *
- * Avoid sending too many simultaneous requests to
- * regulator websites.
- * =========================================================
- */
 
 async function mapWithConcurrency(
   items,
@@ -1098,7 +836,6 @@ async function mapWithConcurrency(
         length:
           workerCount,
       },
-
       () =>
         runWorker()
     )
@@ -1107,15 +844,7 @@ async function mapWithConcurrency(
   return results;
 }
 
-/*
- * =========================================================
- * LOAD ONE REGULATOR FEED
- * =========================================================
- */
-
-async function loadFeed(
-  feed
-) {
+async function loadFeed(feed) {
   try {
     const data =
       await parser.parseURL(
@@ -1132,15 +861,10 @@ async function loadFeed(
           )
         : [];
 
-    /*
-     * Enrich up to three items simultaneously.
-     */
-
     const items =
       await mapWithConcurrency(
         latestItems,
         3,
-
         (item) =>
           enrichItem(
             feed,
@@ -1149,11 +873,6 @@ async function loadFeed(
       );
 
     return {
-      /*
-       * Keep BOTH source and name for
-       * compatibility with existing BankRegX UI.
-       */
-
       source:
         feed.name,
 
@@ -1171,15 +890,9 @@ async function loadFeed(
   } catch (error) {
     console.error(
       `[regulatory-news] Failed to load ${feed.name}:`,
-
       error?.message ||
         error
     );
-
-    /*
-     * One regulator failing must NOT
-     * take down Regulatory Intelligence.
-     */
 
     return {
       source:
@@ -1198,12 +911,6 @@ async function loadFeed(
     };
   }
 }
-
-/*
- * =========================================================
- * API HANDLER
- * =========================================================
- */
 
 export default async function handler(
   req,
@@ -1227,15 +934,12 @@ export default async function handler(
   }
 
   /*
-   * Cache for five minutes.
-   *
-   * Regulatory content does not need to be fetched again
-   * for every individual BankRegX visitor.
+   * Cache regulatory results for
+   * five minutes.
    */
 
   res.setHeader(
     "Cache-Control",
-
     "public, s-maxage=300, stale-while-revalidate=900"
   );
 
@@ -1244,21 +948,16 @@ export default async function handler(
       await Promise.all(
         FEEDS.map(
           (feed) =>
-            loadFeed(
-              feed
-            )
+            loadFeed(feed)
         )
       );
 
     return res
       .status(200)
-      .json(
-        results
-      );
+      .json(results);
   } catch (error) {
     console.error(
       "[regulatory-news] Unexpected API failure:",
-
       error
     );
 
