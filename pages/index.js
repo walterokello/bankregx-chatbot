@@ -1,757 +1,423 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
-import BankRegXNav from "../components/BankRegXNav";
+
+const MODES = [
+  {
+    id: "ask",
+    number: "01",
+    title: "Ask anything",
+    description: "Ask BankRegX about controls, audit, risk or regulation.",
+    placeholder: "Ask a question about controls, audit, risk or regulation...",
+  },
+  {
+    id: "control",
+    number: "02",
+    title: "Assess a control",
+    description: "Evaluate control design using BankRegX expert methodology.",
+    placeholder: "Describe the risk and control you want BankRegX to assess...",
+  },
+  {
+    id: "regulatory",
+    number: "03",
+    title: "Analyse regulatory impact",
+    description: "Assess what a regulatory development could mean for risks and controls.",
+    placeholder: "Paste or describe a regulatory development to assess...",
+  },
+  {
+    id: "finding",
+    number: "04",
+    title: "Review a finding",
+    description: "Challenge the logic, evidence and significance of an audit or controls finding.",
+    placeholder: "Paste the finding, evidence and management context you want reviewed...",
+  },
+];
+
+function createUserId() {
+  if (typeof window === "undefined") {
+    return "bankregx-web";
+  }
+
+  const existing = window.localStorage.getItem("bankregxUserId");
+
+  if (existing) {
+    return existing;
+  }
+
+  const generated = `brx_${Date.now().toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2, 9)}`;
+
+  window.localStorage.setItem("bankregxUserId", generated);
+  return generated;
+}
+
+function buildPrompt(mode, query) {
+  const text = String(query || "").trim();
+
+  if (mode === "control") {
+    return `Assess the following control design using BankRegX expert methodology. Distinguish the stated facts from assumptions, identify the underlying risk, assess the causal relationship between the risk and the control, and separate design effectiveness from operating effectiveness.\n\n${text}`;
+  }
+
+  if (mode === "regulatory") {
+    return `Analyse the regulatory impact of the following development. Establish the regulatory facts first, identify what is not known, then assess likely relevance to risks and existing controls. Clearly distinguish regulatory fact, BankRegX judgement and recommended action.\n\n${text}`;
+  }
+
+  if (mode === "finding") {
+    return `Review the following audit or controls finding. Challenge the logic, evidence, risk articulation, control linkage and significance. Distinguish facts from assumptions and explain whether the conclusion is adequately supported.\n\n${text}`;
+  }
+
+  return text;
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
 
 export default function Home() {
-  const [
-    query,
-    setQuery,
-  ] = useState("");
+  const [mode, setMode] = useState("ask");
+  const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [userId, setUserId] = useState("bankregx-web");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
 
-  const [
-    answer,
-    setAnswer,
-  ] = useState("");
+  const [feeds, setFeeds] = useState([]);
+  const [feedsLoading, setFeedsLoading] = useState(true);
 
-  const [
-    responseId,
-    setResponseId,
-  ] = useState(null);
-
-  const [
-    expertGuidance,
-    setExpertGuidance,
-  ] = useState([]);
-
-  const [
-    detectedCategories,
-    setDetectedCategories,
-  ] = useState([]);
-
-  const [
-    loading,
-    setLoading,
-  ] = useState(false);
-
-  const [
-    error,
-    setError,
-  ] = useState("");
-
-  const [
-    news,
-    setNews,
-  ] = useState([]);
-
-  const [
-    newsLoading,
-    setNewsLoading,
-  ] = useState(true);
-
-  const [
-    activeMode,
-    setActiveMode,
-  ] = useState("ask");
-
-  const [
-    feedbackStatus,
-    setFeedbackStatus,
-  ] = useState("");
-
-  const [
-    showCorrection,
-    setShowCorrection,
-  ] = useState(false);
-
-  const [
-    correction,
-    setCorrection,
-  ] = useState("");
-
-  const [
-    rationale,
-    setRationale,
-  ] = useState("");
-
-  /*
-   * =====================================================
-   * ASSESSMENT MODES
-   * =====================================================
-   */
-
-  const modes = [
-    {
-      id: "ask",
-
-      label:
-        "Ask anything",
-
-      description:
-        "Ask BankRegX about controls, audit, risk or regulation.",
-
-      placeholder:
-        "Ask BankRegX a controls, audit, risk or regulatory question...",
-    },
-
-    {
-      id: "control",
-
-      label:
-        "Assess a control",
-
-      description:
-        "Evaluate control design using BankRegX expert methodology.",
-
-      placeholder:
-        "Describe the control you want BankRegX to assess...",
-    },
-
-    {
-      id: "regulatory",
-
-      label:
-        "Analyse regulatory impact",
-
-      description:
-        "Assess what a regulatory development could mean for risks and controls.",
-
-      placeholder:
-        "Describe or paste the regulatory development you want BankRegX to analyse...",
-    },
-
-    {
-      id: "finding",
-
-      label:
-        "Review a finding",
-
-      description:
-        "Challenge the logic, evidence and significance of an audit or controls finding.",
-
-      placeholder:
-        "Paste or describe the audit finding you want BankRegX to review...",
-    },
-  ];
-
-  const currentMode =
-    modes.find(
-      (mode) =>
-        mode.id ===
-        activeMode
-    ) || modes[0];
-
-  /*
-   * =====================================================
-   * LOAD REGULATORY INTELLIGENCE
-   * =====================================================
-   */
+  const [feedbackType, setFeedbackType] = useState("");
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState("");
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   useEffect(() => {
-    loadNews();
+    setUserId(createUserId());
+    loadRegulatoryIntelligence();
   }, []);
 
-  async function loadNews() {
-    setNewsLoading(true);
+  const selectedMode = useMemo(
+    () => MODES.find((item) => item.id === mode) || MODES[0],
+    [mode]
+  );
+
+  const regulatoryPreview = useMemo(() => {
+    const items = [];
+
+    feeds.forEach((feed) => {
+      const source = feed?.source || feed?.name || "Regulator";
+
+      (feed?.items || []).forEach((item) => {
+        items.push({
+          ...item,
+          source,
+        });
+      });
+    });
+
+    return items
+      .sort((a, b) => {
+        const aTime = new Date(a?.isoDate || a?.pubDate || 0).getTime();
+        const bTime = new Date(b?.isoDate || b?.pubDate || 0).getTime();
+        return bTime - aTime;
+      })
+      .slice(0, 3);
+  }, [feeds]);
+
+  async function loadRegulatoryIntelligence() {
+    setFeedsLoading(true);
 
     try {
-      const response =
-        await fetch(
-          "/api/regulatory-news"
-        );
+      const response = await fetch("/api/regulatory-news");
+      const data = await response.json();
 
-      const data =
-        await response.json();
-
-      let flattened = [];
-
-      /*
-       * The endpoint has historically returned
-       * regulatory feeds in several possible shapes.
-       * This keeps the homepage resilient.
-       */
-
-      if (
-        Array.isArray(data)
-      ) {
-        flattened = data;
-      } else if (
-        Array.isArray(
-          data?.items
-        )
-      ) {
-        flattened =
-          data.items;
-      } else if (
-        Array.isArray(
-          data?.news
-        )
-      ) {
-        flattened =
-          data.news;
-      } else if (
-        data &&
-        typeof data ===
-          "object"
-      ) {
-        Object.entries(
-          data
-        ).forEach(
-          ([
-            source,
-            items,
-          ]) => {
-            if (
-              Array.isArray(
-                items
-              )
-            ) {
-              items.forEach(
-                (item) => {
-                  flattened.push(
-                    {
-                      ...item,
-
-                      source:
-                        item.source ||
-                        source,
-                    }
-                  );
-                }
-              );
-            }
-          }
-        );
-      }
-
-      setNews(
-        flattened.slice(
-          0,
-          12
-        )
-      );
-    } catch (err) {
-      console.error(
-        "Unable to load regulatory news:",
-        err
-      );
+      setFeeds(Array.isArray(data) ? data : []);
+    } catch (loadError) {
+      console.error("Unable to load regulatory intelligence:", loadError);
+      setFeeds([]);
     } finally {
-      setNewsLoading(false);
+      setFeedsLoading(false);
     }
   }
 
-  /*
-   * =====================================================
-   * ASK BANKREGX
-   * =====================================================
-   */
+  async function runAssessment() {
+    const cleanQuery = query.trim();
 
-  async function askBankRegX(
-    customPrompt = null
-  ) {
-    const prompt =
-      customPrompt ||
-      query.trim();
-
-    if (!prompt) {
+    if (!cleanQuery || loading) {
       return;
     }
 
     setLoading(true);
     setError("");
-    setAnswer("");
-    setResponseId(null);
-    setExpertGuidance([]);
-    setDetectedCategories([]);
+    setResult(null);
+    setSubmittedQuery(cleanQuery);
+    setFeedbackType("");
+    setFeedbackText("");
     setFeedbackStatus("");
-    setShowCorrection(false);
-    setCorrection("");
-    setRationale("");
 
     try {
-      const response =
-        await fetch(
-          "/api/ask",
-          {
-            method:
-              "POST",
+      const response = await fetch("/api/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: buildPrompt(mode, cleanQuery),
+          userId,
+        }),
+      });
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
+      const text = await response.text();
+      let data = {};
 
-            body:
-              JSON.stringify({
-                userId:
-                  "bankregx-user",
-
-                query:
-                  prompt,
-              }),
-          }
-        );
-
-      const data =
-        await response.json();
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(text || "BankRegX returned an unexpected response.");
+      }
 
       if (!response.ok) {
         throw new Error(
           data?.message ||
             data?.error ||
-            "BankRegX could not complete the assessment."
+            "Unable to complete the assessment."
         );
       }
 
-      setAnswer(
-        data.answer ||
-          "No response returned."
-      );
-
-      setResponseId(
-        data.responseId ||
-          null
-      );
-
-      setExpertGuidance(
-        Array.isArray(
-          data.expertGuidance
-        )
-          ? data.expertGuidance
-          : []
-      );
-
-      setDetectedCategories(
-        Array.isArray(
-          data.detectedCategories
-        )
-          ? data.detectedCategories
-          : []
-      );
-
-      if (customPrompt) {
-        setQuery(
-          customPrompt
-        );
-      }
-    } catch (err) {
-      console.error(err);
-
+      setResult(data);
+    } catch (assessmentError) {
       setError(
-        err.message ||
-          "Something went wrong."
+        assessmentError?.message ||
+          "BankRegX could not complete the assessment. Please try again."
       );
     } finally {
       setLoading(false);
     }
   }
 
-  /*
-   * =====================================================
-   * EXPERT FEEDBACK
-   * =====================================================
-   */
-
-  async function submitFeedback(
-    feedbackType
-  ) {
-    if (!answer) {
-      return;
+  function handleKeyDown(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      runAssessment();
     }
+  }
 
-    if (
-      feedbackType ===
-        "correct" &&
-      !correction.trim()
-    ) {
-      setFeedbackStatus(
-        "Please enter the corrected assessment."
-      );
+  function chooseRegulatoryItem(item) {
+    setMode("regulatory");
 
-      return;
-    }
+    const summary =
+      item?.summary ||
+      item?.description ||
+      item?.contentSnippet ||
+      "";
 
-    setFeedbackStatus(
-      "Saving feedback..."
+    setQuery(
+      [
+        `${item?.source || "Regulatory"} development: ${item?.title || ""}`,
+        summary ? `Summary: ${summary}` : "",
+        item?.link ? `Source: ${item.link}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n")
     );
 
+    window.setTimeout(() => {
+      document
+        .getElementById("assessment-workspace")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 0);
+  }
+
+  async function submitFeedback(type, detail = "") {
+    if (!result?.answer || feedbackLoading) {
+      return;
+    }
+
+    setFeedbackLoading(true);
+    setFeedbackStatus("");
+
     try {
-      const response =
-        await fetch(
-          "/api/feedback",
-          {
-            method:
-              "POST",
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          aiResponse: result.answer,
+          feedback: type,
+          feedbackType: type,
+          responseId: result?.responseId || null,
+          query: submittedQuery,
+          userQuery: submittedQuery,
+          correction: detail || null,
+          rationale: detail || null,
+        }),
+      });
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
+      const text = await response.text();
+      let data = {};
 
-            body:
-              JSON.stringify({
-                userId:
-                  "bankregx-user",
-
-                responseId,
-
-                question:
-                  query,
-
-                aiResponse:
-                  answer,
-
-                feedbackType,
-
-                correctedAnswer:
-                  feedbackType ===
-                  "correct"
-                    ? correction
-                    : "",
-
-                rationale,
-
-                category:
-                  detectedCategories[
-                    0
-                  ] ||
-                  activeMode ||
-                  "general",
-              }),
-          }
-        );
-
-      const data =
-        await response.json();
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
+      }
 
       if (!response.ok) {
         throw new Error(
           data?.message ||
-            "Unable to save feedback."
+            "Unable to record feedback."
         );
       }
 
-      if (
-        feedbackType ===
-        "approve"
-      ) {
-        setFeedbackStatus(
-          "Assessment approved."
-        );
-      } else if (
-        feedbackType ===
-        "reject"
-      ) {
-        setFeedbackStatus(
-          "Assessment rejected and recorded for expert review."
-        );
-      } else {
-        setFeedbackStatus(
-          "Correction saved and added to the Expert Review Queue."
-        );
-
-        setShowCorrection(
-          false
-        );
-      }
-    } catch (err) {
       setFeedbackStatus(
-        err.message ||
-          "Unable to save feedback."
+        type === "approve"
+          ? "Assessment approved. Thank you."
+          : "Feedback recorded for expert review."
       );
+
+      setFeedbackType("");
+      setFeedbackText("");
+    } catch (feedbackError) {
+      setFeedbackStatus(
+        feedbackError?.message ||
+          "Unable to record feedback."
+      );
+    } finally {
+      setFeedbackLoading(false);
     }
   }
 
-  /*
-   * =====================================================
-   * CHANGE ASSESSMENT MODE
-   * =====================================================
-   */
-
-  function chooseMode(
-    modeId
-  ) {
-    setActiveMode(
-      modeId
-    );
-
-    setAnswer("");
-    setResponseId(null);
-    setExpertGuidance([]);
-    setDetectedCategories([]);
-    setError("");
-    setFeedbackStatus("");
-    setShowCorrection(false);
-
-    const examples = {
-      ask: "",
-
-      control:
-        "Assess this control: ",
-
-      regulatory:
-        "Analyse the regulatory impact of: ",
-
-      finding:
-        "Review this finding: ",
-    };
-
-    setQuery(
-      examples[
-        modeId
-      ] || ""
-    );
-  }
-
-  /*
-   * =====================================================
-   * ANALYSE A REGULATORY NEWS ITEM
-   * =====================================================
-   */
-
-  function analyseNewsItem(
-    item
-  ) {
-    const title =
-      item.title ||
-      item.name ||
-      "Regulatory development";
-
-    const source =
-      item.source ||
-      item.regulator ||
-      "";
-
-    const description =
-      item.description ||
-      item.summary ||
-      "";
-
-    const prompt = `
-Analyse the control and risk impact of this regulatory development.
-
-Title: ${title}
-
-Source: ${source}
-
-Summary: ${description}
-
-Distinguish regulatory fact from BankRegX professional judgement.
-
-Consider:
-- the underlying regulatory or conduct risk;
-- potentially affected business activities;
-- relevant existing controls;
-- whether this implies no material control impact, further assessment, potential enhancement, or a genuine control gap;
-- what evidence should be reviewed before reaching a conclusion.
-`.trim();
-
-    setActiveMode(
-      "regulatory"
-    );
-
-    setQuery(prompt);
-
-    askBankRegX(
-      prompt
-    );
-
-    window.scrollTo({
-      top: 0,
-      behavior:
-        "smooth",
-    });
-  }
-
-  /*
-   * =====================================================
-   * DISPLAY HELPERS
-   * =====================================================
-   */
-
-  function displayCategory(
-    category
-  ) {
-    return String(
-      category || ""
-    )
-      .replace(
-        /_/g,
-        " "
-      )
-      .replace(
-        /\b\w/g,
-        (letter) =>
-          letter.toUpperCase()
-      );
-  }
-
-  function handleKeyDown(
-    event
-  ) {
-    if (
-      event.key ===
-        "Enter" &&
-      (event.ctrlKey ||
-        event.metaKey)
-    ) {
-      event.preventDefault();
-
-      askBankRegX();
-    }
-  }
-
-  /*
-   * =====================================================
-   * PAGE
-   * =====================================================
-   */
+  const methodologyTrace =
+    result?.methodologyTrace?.length > 0
+      ? result.methodologyTrace
+      : result?.expertGuidance || [];
 
   return (
     <>
-      <div className="page">
-        <BankRegXNav
-          current="home"
-        />
+      <main className="page">
+        <SiteHeader active="home" />
 
-        <main className="main">
-          {/*
-           * =================================================
-           * HERO
-           * =================================================
-           */}
+        <section className="hero">
+          <div className="eyebrow">
+            CONTROL INTELLIGENCE
+          </div>
 
-          <section className="hero">
-            <div className="eyebrow">
-              CONTROL
-              INTELLIGENCE
-            </div>
+          <h1>
+            What would you like to assess?
+          </h1>
 
-            <h1>
-              What would you
-              like to assess?
-            </h1>
+          <p className="heroText">
+            Apply AI, approved BankRegX expert
+            methodology and regulatory intelligence
+            to controls, audit judgements and
+            emerging risk.
+          </p>
+        </section>
 
-            <p className="heroText">
-              Apply AI, approved
-              BankRegX expert
-              methodology and
-              regulatory
-              intelligence to
-              controls, audit
-              judgements and
-              emerging risk.
-            </p>
-          </section>
+        <section
+          className="modeGrid"
+          aria-label="Assessment modes"
+        >
+          {MODES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={
+                mode === item.id
+                  ? "modeCard active"
+                  : "modeCard"
+              }
+              onClick={() =>
+                setMode(item.id)
+              }
+            >
+              <div className="modeTop">
+                <span className="modeNumber">
+                  {item.number}
+                </span>
 
-          {/*
-           * =================================================
-           * ASSESSMENT MODES
-           * =================================================
-           */}
-
-          <section className="modeGrid">
-            {modes.map(
-              (mode) => (
-                <button
-                  key={
-                    mode.id
-                  }
-                  type="button"
-                  onClick={() =>
-                    chooseMode(
-                      mode.id
-                    )
-                  }
-                  className={`modeCard ${
-                    activeMode ===
-                    mode.id
-                      ? "modeCardActive"
-                      : ""
-                  }`}
-                >
-                  <div className="modeLabel">
-                    {
-                      mode.label
-                    }
-                  </div>
-
-                  <div className="modeDescription">
-                    {
-                      mode.description
-                    }
-                  </div>
-                </button>
-              )
-            )}
-          </section>
-
-          {/*
-           * =================================================
-           * QUESTION / ASSESSMENT INPUT
-           * =================================================
-           */}
-
-          <section className="askPanel">
-            <div className="askHeader">
-              <div>
-                <div className="sectionEyebrow">
-                  {
-                    currentMode.label
-                  }
-                </div>
-
-                <div className="askTitle">
-                  BankRegX
-                  assessment
-                </div>
+                <span className="modeIndicator">
+                  {mode === item.id
+                    ? "●"
+                    : "○"}
+                </span>
               </div>
 
-              <div className="shortcut">
-                Ctrl + Enter
+              <h2>
+                {item.title}
+              </h2>
+
+              <p>
+                {item.description}
+              </p>
+            </button>
+          ))}
+        </section>
+
+        <section
+          id="assessment-workspace"
+          className="workspaceSection"
+        >
+          <div className="workspaceHeader">
+            <div>
+              <div className="sectionEyebrow">
+                {selectedMode.title.toUpperCase()}
               </div>
+
+              <h2>
+                BankRegX assessment
+              </h2>
             </div>
 
+            <div className="shortcut">
+              Ctrl + Enter
+            </div>
+          </div>
+
+          <div className="assessmentCard">
             <textarea
-              value={
-                query
-              }
-              onChange={(
-                event
-              ) =>
-                setQuery(
-                  event.target
-                    .value
-                )
-              }
-              onKeyDown={
-                handleKeyDown
-              }
-              placeholder={
-                currentMode.placeholder
-              }
               className="queryInput"
+              value={query}
+              onChange={(event) =>
+                setQuery(event.target.value)
+              }
+              onKeyDown={handleKeyDown}
+              placeholder={
+                selectedMode.placeholder
+              }
+              rows={7}
             />
 
-            <div className="askFooter">
-              <div className="inputHint">
-                BankRegX
-                distinguishes
-                facts, unknowns,
-                assumptions and
-                professional
-                judgement.
+            <div className="inputFooter">
+              <div className="inputNote">
+                BankRegX distinguishes facts,
+                unknowns, assumptions and
+                professional judgement.
               </div>
 
               <button
                 type="button"
                 className="primaryButton"
-                onClick={() =>
-                  askBankRegX()
-                }
+                onClick={runAssessment}
                 disabled={
                   loading ||
                   !query.trim()
@@ -762,691 +428,518 @@ Consider:
                   : "Ask BankRegX"}
               </button>
             </div>
-          </section>
+          </div>
 
-          {/*
-           * =================================================
-           * ERRORS
-           * =================================================
-           */}
-
-          {error && (
-            <section className="errorCard">
+          {error ? (
+            <div className="errorBox">
               {error}
-            </section>
-          )}
+            </div>
+          ) : null}
 
-          {/*
-           * =================================================
-           * LOADING STATE
-           * =================================================
-           */}
-
-          {loading && (
-            <section className="loadingCard">
-              <div className="loadingTop">
-                <div className="loadingPulse" />
-
-                <div>
-                  <div className="loadingTitle">
-                    BankRegX is
-                    assessing
-                  </div>
-
-                  <div className="loadingSub">
-                    Applying
-                    evidence
-                    discipline and
-                    relevant Expert
-                    Intelligence
-                  </div>
-                </div>
-              </div>
-
-              <div className="loadingGrid">
-                <span>
-                  Risk
-                </span>
-
-                <span>
-                  Controls
-                </span>
-
-                <span>
-                  Evidence
-                </span>
-
-                <span>
-                  Regulation
-                </span>
-              </div>
-            </section>
-          )}
-
-          {/*
-           * =================================================
-           * ANSWER
-           * =================================================
-           */}
-
-          {answer &&
-            !loading && (
-              <section className="answerCard">
+          {result?.answer ? (
+            <div className="resultLayout">
+              <article className="answerCard">
                 <div className="answerHeader">
                   <div>
                     <div className="sectionEyebrow">
-                      BANKREGX
-                      ASSESSMENT
+                      BANKREGX ASSESSMENT
                     </div>
 
                     <h2>
-                      Control
-                      Intelligence
+                      Professional analysis
                     </h2>
                   </div>
 
-                  <div className="methodBadge">
-                    AI + EXPERT
-                    METHODOLOGY
-                  </div>
+                  {result?.debug
+                    ?.webSearchUsed ? (
+                    <span className="liveBadge">
+                      LIVE RESEARCH
+                    </span>
+                  ) : null}
                 </div>
 
-                {detectedCategories.length >
-                  0 && (
-                  <div className="categoryRow">
-                    {detectedCategories.map(
-                      (
-                        category
-                      ) => (
-                        <span
-                          key={
-                            category
-                          }
-                          className="categoryChip"
-                        >
-                          {displayCategory(
-                            category
-                          )}
-                        </span>
-                      )
-                    )}
-                  </div>
-                )}
-
                 <div className="markdown">
-                  <ReactMarkdown>
-                    {answer}
+                  <ReactMarkdown
+                    components={{
+                      a: ({
+                        node,
+                        ...props
+                      }) => (
+                        <a
+                          {...props}
+                          target="_blank"
+                          rel="noreferrer"
+                        />
+                      ),
+                    }}
+                  >
+                    {result.answer}
                   </ReactMarkdown>
                 </div>
 
-                {/*
-                 * =============================================
-                 * EXPLAINABLE EXPERT METHODOLOGY
-                 * =============================================
-                 */}
-
-                {expertGuidance.length >
-                  0 && (
-                  <div className="explainPanel">
-                    <div className="explainHeader">
-                      <div>
-                        <div className="sectionEyebrow">
-                          EXPLAINABLE
-                          INTELLIGENCE
-                        </div>
-
-                        <h3>
-                          Methodology
-                          informing this
-                          assessment
-                        </h3>
-                      </div>
-
-                      <div className="guidanceCount">
-                        {
-                          expertGuidance.length
-                        }{" "}
-                        expert
-                        principles
-                      </div>
+                {Array.isArray(
+                  result?.browsedPages
+                ) &&
+                result.browsedPages
+                  .length > 0 ? (
+                  <div className="sourcesBlock">
+                    <div className="smallLabel">
+                      SOURCES USED
                     </div>
 
-                    <p className="explainIntro">
-                      BankRegX
-                      retrieved the
-                      following approved
-                      expert methodology
-                      as relevant to
-                      this assessment.
-                    </p>
-
-                    <div className="guidanceList">
-                      {expertGuidance.map(
+                    <div className="sourceLinks">
+                      {result.browsedPages.map(
                         (
-                          item
+                          source,
+                          index
                         ) => (
-                          <div
-                            key={
-                              item.id ||
-                              item.guidanceId
+                          <a
+                            key={`${
+                              source?.url ||
+                              index
+                            }`}
+                            href={
+                              source?.url
                             }
-                            className="guidanceItem"
+                            target="_blank"
+                            rel="noreferrer"
                           >
-                            <div className="guidanceMeta">
-                              <span className="guidanceId">
-                                {
-                                  item.guidanceId
-                                }
-                              </span>
-
-                              <span
-                                className={`priority priority-${String(
-                                  item.priority ||
-                                    "medium"
-                                ).toLowerCase()}`}
-                              >
-                                {String(
-                                  item.priority ||
-                                    "medium"
-                                ).toUpperCase()}
-                              </span>
-                            </div>
-
-                            <div className="guidanceTitle">
-                              {
-                                item.title
-                              }
-                            </div>
-
-                            <div className="guidanceCategory">
-                              {displayCategory(
-                                item.category
-                              )}
-
-                              {item.subcategory
-                                ? ` · ${displayCategory(
-                                    item.subcategory
-                                  )}`
-                                : ""}
-                            </div>
-                          </div>
+                            {source?.title ||
+                              `Source ${
+                                index +
+                                1
+                              }`}{" "}
+                            ↗
+                          </a>
                         )
                       )}
                     </div>
-
-                    <div className="explainNote">
-                      Expert
-                      methodology
-                      informs BankRegX
-                      professional
-                      judgement. It is
-                      not presented as
-                      legislation or
-                      regulatory source
-                      material.
-                    </div>
                   </div>
-                )}
+                ) : null}
 
-                {/*
-                 * =============================================
-                 * EXPERT REVIEW
-                 * =============================================
-                 */}
-
-                <div className="feedbackPanel">
-                  <div className="feedbackHeader">
-                    <div>
-                      <div className="feedbackTitle">
-                        Expert review
-                      </div>
-
-                      <div className="feedbackSub">
-                        Was this
-                        assessment
-                        professionally
-                        sound?
-                      </div>
+                <div className="feedbackBlock">
+                  <div>
+                    <div className="smallLabel">
+                      EXPERT FEEDBACK
                     </div>
 
-                    {responseId && (
-                      <div className="responseRef">
-                        Assessment
-                        recorded
-                      </div>
-                    )}
+                    <p>
+                      Help BankRegX identify
+                      assessments that should be
+                      reviewed by an expert.
+                    </p>
                   </div>
 
                   <div className="feedbackButtons">
                     <button
                       type="button"
-                      className="feedbackButton approve"
                       onClick={() =>
                         submitFeedback(
                           "approve"
                         )
                       }
-                    >
-                      ✓ Approve
-                    </button>
-
-                    <button
-                      type="button"
-                      className="feedbackButton correct"
-                      onClick={() =>
-                        setShowCorrection(
-                          (
-                            current
-                          ) =>
-                            !current
-                        )
+                      disabled={
+                        feedbackLoading
                       }
                     >
-                      ✎ Correct
+                      Approve
                     </button>
 
                     <button
                       type="button"
-                      className="feedbackButton reject"
-                      onClick={() =>
-                        submitFeedback(
+                      onClick={() => {
+                        setFeedbackType(
+                          "correct"
+                        );
+                        setFeedbackStatus(
+                          ""
+                        );
+                      }}
+                      disabled={
+                        feedbackLoading
+                      }
+                    >
+                      Correct
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFeedbackType(
                           "reject"
-                        )
+                        );
+                        setFeedbackStatus(
+                          ""
+                        );
+                      }}
+                      disabled={
+                        feedbackLoading
                       }
                     >
-                      × Reject
+                      Reject
                     </button>
                   </div>
 
-                  {showCorrection && (
-                    <div className="correctionBox">
-                      <label>
-                        Corrected
-                        assessment
-                      </label>
-
+                  {feedbackType ? (
+                    <div className="feedbackEditor">
                       <textarea
                         value={
-                          correction
+                          feedbackText
                         }
                         onChange={(
                           event
                         ) =>
-                          setCorrection(
+                          setFeedbackText(
                             event
                               .target
                               .value
                           )
                         }
-                        placeholder="How should BankRegX have assessed this?"
-                        className="correctionInput"
+                        rows={4}
+                        placeholder={
+                          feedbackType ===
+                          "correct"
+                            ? "What should BankRegX have concluded or considered differently?"
+                            : "Why should this assessment be rejected?"
+                        }
                       />
 
-                      <label>
-                        Expert rationale
-                        <span>
-                          {" "}
-                          — optional
-                        </span>
-                      </label>
-
-                      <textarea
-                        value={
-                          rationale
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          setRationale(
-                            event
-                              .target
-                              .value
-                          )
-                        }
-                        placeholder="Why is this correction important?"
-                        className="rationaleInput"
-                      />
-
-                      <div className="correctionActions">
+                      <div className="feedbackEditorActions">
                         <button
                           type="button"
-                          className="secondaryButton"
-                          onClick={() =>
-                            setShowCorrection(
-                              false
-                            )
-                          }
+                          className="quietButton"
+                          onClick={() => {
+                            setFeedbackType(
+                              ""
+                            );
+                            setFeedbackText(
+                              ""
+                            );
+                          }}
                         >
                           Cancel
                         </button>
 
                         <button
                           type="button"
-                          className="primaryButton small"
+                          className="primarySmall"
+                          disabled={
+                            feedbackLoading ||
+                            !feedbackText.trim()
+                          }
                           onClick={() =>
                             submitFeedback(
-                              "correct"
+                              feedbackType,
+                              feedbackText.trim()
                             )
                           }
                         >
-                          Save expert
-                          correction
+                          {feedbackLoading
+                            ? "Saving..."
+                            : "Submit for review"}
                         </button>
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
-                  {feedbackStatus && (
+                  {feedbackStatus ? (
                     <div className="feedbackStatus">
-                      {
-                        feedbackStatus
-                      }
+                      {feedbackStatus}
                     </div>
-                  )}
+                  ) : null}
                 </div>
-              </section>
-            )}
+              </article>
 
-          {/*
-           * =================================================
-           * REGULATORY INTELLIGENCE
-           * =================================================
-           */}
-
-          <section className="newsSection">
-            <div className="newsHeader">
-              <div>
+              <aside className="methodologyCard">
                 <div className="sectionEyebrow">
-                  MONITOR
+                  METHODOLOGY
                 </div>
 
                 <h2>
-                  Regulatory
-                  intelligence
+                  Methodology informing this
+                  assessment
                 </h2>
 
-                <p>
-                  Review emerging
-                  developments and ask
-                  BankRegX what they
-                  could mean for
-                  existing risks and
-                  controls.
+                <p className="methodIntro">
+                  Approved BankRegX guidance
+                  retrieved as relevant to this
+                  assessment.
                 </p>
-              </div>
 
-              <div className="newsHeaderActions">
-                <a
-                  href="/regulatory-news"
-                  className="viewAllLink"
-                >
-                  View full
-                  intelligence
-                </a>
+                {methodologyTrace.length >
+                0 ? (
+                  <div className="methodList">
+                    {methodologyTrace.map(
+                      (
+                        item,
+                        index
+                      ) => {
+                        const guidanceId =
+                          item?.guidanceId ||
+                          item?.id ||
+                          item?.documentId;
 
-                <button
-                  type="button"
-                  className="refreshButton"
-                  onClick={
-                    loadNews
-                  }
-                >
-                  Refresh
-                </button>
-              </div>
-            </div>
+                        const version =
+                          item?.version;
 
-            {newsLoading ? (
-              <div className="newsLoading">
-                Loading regulatory
-                intelligence...
-              </div>
-            ) : news.length ===
-              0 ? (
-              <div className="newsLoading">
-                No regulatory
-                intelligence
-                available.
-              </div>
-            ) : (
-              <div className="newsGrid">
-                {news.map(
-                  (
-                    item,
-                    index
-                  ) => {
-                    const title =
-                      item.title ||
-                      item.name ||
-                      "Regulatory update";
-
-                    const source =
-                      item.source ||
-                      item.regulator ||
-                      "";
-
-                    const description =
-                      item.description ||
-                      item.summary ||
-                      "";
-
-                    const link =
-                      item.link ||
-                      item.url ||
-                      "";
-
-                    return (
-                      <article
-                        className="newsCard"
-                        key={`${title}-${index}`}
-                      >
-                        <div className="newsSource">
-                          {source ||
-                            "REGULATORY INTELLIGENCE"}
-                        </div>
-
-                        <h3>
-                          {
-                            title
-                          }
-                        </h3>
-
-                        {description && (
-                          <p>
-                            {description.slice(
-                              0,
-                              220
-                            )}
-
-                            {description.length >
-                            220
-                              ? "..."
-                              : ""}
-                          </p>
-                        )}
-
-                        <div className="newsActions">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              analyseNewsItem(
-                                item
-                              )
-                            }
+                        return (
+                          <div
+                            className="methodItem"
+                            key={`${
+                              item?.documentId ||
+                              guidanceId ||
+                              index
+                            }-${index}`}
                           >
-                            Analyse
-                            control
-                            impact
-                          </button>
+                            <div className="methodMeta">
+                              <span>
+                                {guidanceId ||
+                                  `Principle ${
+                                    index +
+                                    1
+                                  }`}
+                              </span>
 
-                          {link && (
-                            <a
-                              href={
-                                link
-                              }
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Source ↗
-                            </a>
-                          )}
-                        </div>
-                      </article>
-                    );
-                  }
+                              {version ? (
+                                <span>
+                                  v
+                                  {
+                                    version
+                                  }
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <strong>
+                              {item?.title ||
+                                "BankRegX expert principle"}
+                            </strong>
+
+                            {(item?.category ||
+                              item?.subcategory) && (
+                              <span className="methodCategory">
+                                {[
+                                  item?.category,
+                                  item?.subcategory,
+                                ]
+                                  .filter(
+                                    Boolean
+                                  )
+                                  .join(
+                                    " · "
+                                  )}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                    )}
+                  </div>
+                ) : (
+                  <div className="emptyMethod">
+                    No specific expert
+                    principles were returned
+                    for this assessment.
+                  </div>
                 )}
-              </div>
-            )}
-          </section>
+              </aside>
+            </div>
+          ) : null}
+        </section>
 
-          {/*
-           * =================================================
-           * BANKREGX MODEL
-           * =================================================
-           */}
-
-          <section className="foundation">
-            <div className="foundationIntro">
+        <section className="monitorSection">
+          <div className="sectionHeadingRow">
+            <div>
               <div className="sectionEyebrow">
-                BANKREGX
-                INTELLIGENCE
-                MODEL
+                MONITOR
               </div>
 
               <h2>
-                From AI assistant
-                to control
-                intelligence
+                Regulatory intelligence
               </h2>
 
               <p>
-                BankRegX combines
-                AI analysis with
-                governed expert
-                methodology,
-                regulatory
-                intelligence and a
-                human-controlled
-                learning process.
+                Review emerging developments
+                and ask BankRegX what they
+                could mean for existing risks
+                and controls.
               </p>
             </div>
 
-            <div className="foundationGrid">
-              <div>
-                <span>
-                  01
-                </span>
+            <div className="sectionActions">
+              <Link
+                href="/regulatory-news"
+                className="secondaryAction"
+              >
+                View full intelligence
+              </Link>
 
-                <h3>
-                  Ask
-                </h3>
-
-                <p>
-                  Interrogate
-                  controls, audit,
-                  risk and
-                  regulation.
-                </p>
-              </div>
-
-              <div>
-                <span>
-                  02
-                </span>
-
-                <h3>
-                  Assess
-                </h3>
-
-                <p>
-                  Apply disciplined
-                  methodology to
-                  professional
-                  judgement.
-                </p>
-              </div>
-
-              <div>
-                <span>
-                  03
-                </span>
-
-                <h3>
-                  Monitor
-                </h3>
-
-                <p>
-                  Connect regulatory
-                  developments to
-                  risks and controls.
-                </p>
-              </div>
-
-              <div>
-                <span>
-                  04
-                </span>
-
-                <h3>
-                  Learn
-                </h3>
-
-                <p>
-                  Capture expert
-                  review and build
-                  governed BankRegX
-                  intelligence.
-                </p>
-              </div>
+              <button
+                type="button"
+                className="quietAction"
+                onClick={
+                  loadRegulatoryIntelligence
+                }
+                disabled={
+                  feedsLoading
+                }
+              >
+                {feedsLoading
+                  ? "Refreshing..."
+                  : "Refresh"}
+              </button>
             </div>
-          </section>
-        </main>
-
-        <footer>
-          <div>
-            BANKREGX
           </div>
 
-          <span>
-            AI CONTROL
-            INTELLIGENCE FOR
-            BANKING
-          </span>
-        </footer>
-      </div>
+          {feedsLoading &&
+          regulatoryPreview.length ===
+            0 ? (
+            <div className="loadingPanel">
+              Loading regulatory
+              intelligence...
+            </div>
+          ) : regulatoryPreview.length >
+            0 ? (
+            <div className="regGrid">
+              {regulatoryPreview.map(
+                (
+                  item,
+                  index
+                ) => (
+                  <div
+                    className="regCard"
+                    key={`${
+                      item?.link ||
+                      item?.title
+                    }-${index}`}
+                  >
+                    <div className="regMeta">
+                      <span>
+                        {
+                          item?.source
+                        }
+                      </span>
 
-      {/*
-       * ===================================================
-       * PAGE STYLES
-       * ===================================================
-       */}
+                      <span>
+                        {formatDate(
+                          item?.isoDate ||
+                            item?.pubDate
+                        )}
+                      </span>
+                    </div>
 
-      <style jsx global>{`
+                    <h3>
+                      {item?.title}
+                    </h3>
+
+                    <p>
+                      {item?.summary ||
+                        item?.description ||
+                        item?.contentSnippet ||
+                        "Open the development or ask BankRegX to assess the potential control impact."}
+                    </p>
+
+                    <div className="regActions">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          chooseRegulatoryItem(
+                            item
+                          )
+                        }
+                      >
+                        Analyse impact
+                      </button>
+
+                      {item?.link ? (
+                        <a
+                          href={
+                            item.link
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open source ↗
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="loadingPanel">
+              Regulatory intelligence is
+              temporarily unavailable.
+            </div>
+          )}
+        </section>
+
+        <section className="modelSection">
+          <div className="modelIntro">
+            <div className="sectionEyebrow">
+              BANKREGX INTELLIGENCE MODEL
+            </div>
+
+            <h2>
+              From AI assistant to control
+              intelligence
+            </h2>
+
+            <p>
+              BankRegX combines AI analysis
+              with governed expert
+              methodology, regulatory
+              intelligence and a
+              human-controlled learning
+              process.
+            </p>
+          </div>
+
+          <div className="modelGrid">
+            <ModelCard
+              number="01"
+              title="Ask"
+              text="Interrogate controls, audit, risk and regulation."
+            />
+
+            <ModelCard
+              number="02"
+              title="Assess"
+              text="Apply disciplined methodology to professional judgement."
+            />
+
+            <ModelCard
+              number="03"
+              title="Monitor"
+              text="Connect regulatory developments to risks and controls."
+            />
+
+            <ModelCard
+              number="04"
+              title="Learn"
+              text="Capture expert review and build governed BankRegX intelligence."
+            />
+          </div>
+        </section>
+
+        <SiteFooter />
+      </main>
+
+      <style jsx>{`
         * {
-          box-sizing:
-            border-box;
+          box-sizing: border-box;
         }
 
-        html {
-          background:
-            #071014;
+        :global(html) {
+          background: #0a1a1c;
+          scroll-behavior: smooth;
         }
 
-        body {
+        :global(body) {
           margin: 0;
-          background:
-            radial-gradient(
-              circle at top left,
-              rgba(
-                42,
-                110,
-                110,
-                0.14
-              ),
-              transparent 34%
-            ),
-            #071014;
-          color: #edf5f3;
+          background: #0a1a1c;
+          color: #f4fbfa;
           font-family:
             Inter,
             ui-sans-serif,
@@ -1457,121 +950,747 @@ Consider:
             sans-serif;
         }
 
-        button,
-        textarea {
+        :global(a) {
+          color: inherit;
+          text-decoration: none !important;
+        }
+
+        :global(button),
+        :global(textarea) {
           font: inherit;
         }
 
-        button {
-          cursor:
-            pointer;
-        }
-
         .page {
-          min-height:
-            100vh;
-        }
+          min-height: 100vh;
 
-        .main {
-          width:
-            min(
-              1180px,
-              90vw
+          background:
+            radial-gradient(
+              circle at 18% 0%,
+              rgba(
+                20,
+                184,
+                166,
+                0.14
+              ),
+              transparent 34%
+            ),
+            linear-gradient(
+              180deg,
+              #0a1a1c 0%,
+              #0d2022 52%,
+              #091719 100%
             );
-          margin:
-            0 auto;
         }
-
-        /*
-         * HERO
-         */
 
         .hero {
+          max-width: 1120px;
+
+          margin: 0 auto;
+
           padding:
-            88px 0 45px;
-          max-width:
-            820px;
+            92px 28px 42px;
         }
 
         .eyebrow,
-        .sectionEyebrow {
-          font-size:
-            10px;
-          font-weight:
-            800;
+        .sectionEyebrow,
+        .smallLabel {
+          color: #55dbc6;
+
+          font-size: 10px;
+
+          font-weight: 800;
+
           letter-spacing:
-            0.17em;
-          color:
-            #87c2b7;
-          text-transform:
-            uppercase;
+            0.18em;
         }
 
         .hero h1 {
+          max-width: 820px;
+
+          margin:
+            15px 0 18px;
+
+          color: #f8fcfb;
+
           font-size:
             clamp(
               44px,
               6vw,
-              74px
+              68px
             );
-          line-height:
-            0.98;
+
+          line-height: 1;
+
           letter-spacing:
             -0.045em;
-          margin:
-            17px 0 22px;
-          font-weight:
-            650;
-          color:
-            #f1f6f5;
         }
 
         .heroText {
-          max-width:
-            700px;
-          color:
-            #9aafab;
-          line-height:
-            1.7;
-          font-size:
-            16px;
+          max-width: 790px;
+
+          margin: 0;
+
+          color: #d1dfdc;
+
+          font-size: 19px;
+
+          line-height: 1.65;
         }
 
-        /*
-         * MODES
-         */
-
         .modeGrid {
-          display:
-            grid;
+          max-width: 1120px;
+
+          margin: 0 auto;
+
+          padding:
+            0 28px 68px;
+
+          display: grid;
+
           grid-template-columns:
             repeat(
               4,
-              1fr
+              minmax(
+                0,
+                1fr
+              )
             );
-          gap:
-            12px;
-          margin-bottom:
-            18px;
+
+          gap: 12px;
         }
 
         .modeCard {
-          text-align:
-            left;
-          padding:
-            20px;
-          min-height:
-            118px;
-          border-radius:
-            15px;
+          min-height: 190px;
+
+          padding: 22px;
+
+          text-align: left;
+
+          cursor: pointer;
+
           border:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.075
+              0.1
             );
+
+          border-radius: 13px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.03
+            );
+
+          color: inherit;
+
+          transition:
+            transform 0.2s ease,
+            border-color 0.2s ease,
+            background 0.2s ease;
+        }
+
+        .modeCard:hover {
+          transform:
+            translateY(-2px);
+
+          border-color:
+            rgba(
+              45,
+              212,
+              191,
+              0.28
+            );
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.055
+            );
+        }
+
+        .modeCard.active {
+          border-color:
+            rgba(
+              45,
+              212,
+              191,
+              0.48
+            );
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.09
+            );
+        }
+
+        .modeTop {
+          display: flex;
+
+          align-items: center;
+
+          justify-content:
+            space-between;
+
+          margin-bottom: 30px;
+        }
+
+        .modeNumber,
+        .modeIndicator {
+          color: #55dbc6;
+
+          font-size: 10px;
+
+          font-weight: 800;
+        }
+
+        .modeCard h2 {
+          margin:
+            0 0 9px;
+
+          color: #f0f7f5;
+
+          font-size: 16px;
+        }
+
+        .modeCard p {
+          margin: 0;
+
+          color: #a3b8b4;
+
+          font-size: 12.5px;
+
+          line-height: 1.65;
+        }
+
+        .workspaceSection,
+        .monitorSection,
+        .modelSection {
+          max-width: 1120px;
+
+          margin: 0 auto;
+
+          padding:
+            75px 28px;
+
+          border-top:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.08
+            );
+        }
+
+        .workspaceHeader,
+        .sectionHeadingRow {
+          display: flex;
+
+          justify-content:
+            space-between;
+
+          align-items:
+            flex-end;
+
+          gap: 30px;
+
+          margin-bottom: 26px;
+        }
+
+        .workspaceHeader h2,
+        .sectionHeadingRow h2,
+        .modelIntro h2,
+        .answerHeader h2,
+        .methodologyCard h2 {
+          margin:
+            8px 0 0;
+
+          color: #f7fcfb;
+
+          font-size: 29px;
+
+          letter-spacing:
+            -0.025em;
+        }
+
+        .sectionHeadingRow p,
+        .modelIntro p {
+          max-width: 660px;
+
+          margin:
+            10px 0 0;
+
+          color: #a2b7b3;
+
+          font-size: 14px;
+
+          line-height: 1.7;
+        }
+
+        .shortcut {
+          color: #91aaa6;
+
+          font-size: 11px;
+        }
+
+        .assessmentCard,
+        .answerCard,
+        .methodologyCard,
+        .loadingPanel,
+        .regCard {
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius: 14px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.03
+            );
+        }
+
+        .assessmentCard {
+          padding: 18px;
+        }
+
+        .queryInput {
+          display: block;
+
+          width: 100%;
+
+          resize: vertical;
+
+          min-height: 150px;
+
+          padding: 18px;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius: 10px;
+
+          outline: none;
+
+          background:
+            rgba(
+              5,
+              19,
+              20,
+              0.48
+            );
+
+          color: #edf7f5;
+
+          font-size: 14px;
+
+          line-height: 1.65;
+        }
+
+        .queryInput::placeholder {
+          color: #78918d;
+        }
+
+        .queryInput:focus {
+          border-color:
+            rgba(
+              45,
+              212,
+              191,
+              0.5
+            );
+
+          box-shadow:
+            0 0 0 3px
+            rgba(
+              20,
+              184,
+              166,
+              0.07
+            );
+        }
+
+        .inputFooter {
+          display: flex;
+
+          justify-content:
+            space-between;
+
+          align-items: center;
+
+          gap: 25px;
+
+          padding:
+            15px 2px 0;
+        }
+
+        .inputNote {
+          color: #94aaa6;
+
+          font-size: 11px;
+
+          line-height: 1.55;
+        }
+
+        .primaryButton,
+        .primarySmall {
+          border: none;
+
+          border-radius: 8px;
+
+          background: #35d1ba;
+
+          color: #041514;
+
+          font-weight: 800;
+
+          cursor: pointer;
+        }
+
+        .primaryButton {
+          min-height: 43px;
+
+          padding:
+            0 18px;
+
+          flex-shrink: 0;
+
+          font-size: 12px;
+        }
+
+        .primarySmall {
+          padding:
+            9px 12px;
+
+          font-size: 11px;
+        }
+
+        .primaryButton:disabled,
+        .primarySmall:disabled {
+          opacity: 0.45;
+
+          cursor: default;
+        }
+
+        .errorBox {
+          margin-top: 14px;
+
+          padding:
+            14px 16px;
+
+          border:
+            1px solid
+            rgba(
+              248,
+              113,
+              113,
+              0.28
+            );
+
+          border-radius: 10px;
+
+          background:
+            rgba(
+              248,
+              113,
+              113,
+              0.06
+            );
+
+          color: #fecaca;
+
+          font-size: 12px;
+        }
+
+        .resultLayout {
+          display: grid;
+
+          grid-template-columns:
+            minmax(
+              0,
+              1.55fr
+            )
+            minmax(
+              290px,
+              0.65fr
+            );
+
+          gap: 14px;
+
+          margin-top: 18px;
+
+          align-items:
+            start;
+        }
+
+        .answerCard,
+        .methodologyCard {
+          padding: 26px;
+        }
+
+        .answerHeader {
+          display: flex;
+
+          justify-content:
+            space-between;
+
+          gap: 20px;
+
+          align-items:
+            flex-start;
+
+          padding-bottom: 20px;
+
+          border-bottom:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.08
+            );
+        }
+
+        .answerHeader h2,
+        .methodologyCard h2 {
+          font-size: 22px;
+        }
+
+        .liveBadge {
+          padding:
+            6px 8px;
+
+          border-radius: 6px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.12
+            );
+
+          color: #63dfcc;
+
+          font-size: 8px;
+
+          font-weight: 800;
+
+          letter-spacing:
+            0.12em;
+        }
+
+        .markdown {
+          padding-top: 10px;
+
+          color: #c9d9d5;
+
+          font-size: 13.5px;
+
+          line-height: 1.75;
+        }
+
+        .markdown :global(h1),
+        .markdown :global(h2),
+        .markdown :global(h3) {
+          color: #f0f7f5;
+
+          line-height: 1.3;
+        }
+
+        .markdown :global(h2) {
+          margin-top: 28px;
+
+          font-size: 19px;
+        }
+
+        .markdown :global(h3) {
+          margin-top: 23px;
+
+          font-size: 15px;
+        }
+
+        .markdown :global(strong) {
+          color: #edf7f5;
+        }
+
+        .markdown :global(a) {
+          color: #5adac6;
+        }
+
+        .markdown :global(li) {
+          margin:
+            5px 0;
+        }
+
+        .sourcesBlock,
+        .feedbackBlock {
+          margin-top: 24px;
+
+          padding-top: 20px;
+
+          border-top:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.08
+            );
+        }
+
+        .sourceLinks {
+          display: flex;
+
+          flex-wrap: wrap;
+
+          gap: 8px;
+
+          margin-top: 10px;
+        }
+
+        .sourceLinks a {
+          padding:
+            7px 9px;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.18
+            );
+
+          border-radius: 7px;
+
+          color: #9fc3bd;
+
+          font-size: 10px;
+        }
+
+        .feedbackBlock p {
+          margin:
+            7px 0 0;
+
+          color: #95aaa6;
+
+          font-size: 11px;
+        }
+
+        .feedbackButtons {
+          display: flex;
+
+          gap: 8px;
+
+          margin-top: 13px;
+        }
+
+        .feedbackButtons button,
+        .quietButton {
+          padding:
+            8px 11px;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius: 7px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.03
+            );
+
+          color: #b9ccc8;
+
+          cursor: pointer;
+
+          font-size: 10px;
+        }
+
+        .feedbackButtons button:hover,
+        .quietButton:hover {
+          border-color:
+            rgba(
+              45,
+              212,
+              191,
+              0.28
+            );
+
+          color: #e7f2ef;
+        }
+
+        .feedbackEditor {
+          margin-top: 12px;
+
+          padding: 12px;
+
+          border-radius: 9px;
+
+          background:
+            rgba(
+              5,
+              19,
+              20,
+              0.38
+            );
+        }
+
+        .feedbackEditor textarea {
+          width: 100%;
+
+          resize: vertical;
+
+          padding: 11px;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius: 7px;
+
+          outline: none;
+
           background:
             rgba(
               255,
@@ -1579,86 +1698,61 @@ Consider:
               255,
               0.025
             );
-          color:
-            inherit;
-          transition:
-            160ms ease;
+
+          color: #dbe8e5;
+
+          font-size: 11px;
+
+          line-height: 1.6;
         }
 
-        .modeCard:hover {
-          border-color:
-            rgba(
-              132,
-              194,
-              181,
-              0.32
-            );
-          background:
-            rgba(
-              255,
-              255,
-              255,
-              0.035
-            );
-          transform:
-            translateY(
-              -1px
-            );
+        .feedbackEditorActions {
+          display: flex;
+
+          justify-content:
+            flex-end;
+
+          gap: 8px;
+
+          margin-top: 9px;
         }
 
-        .modeCardActive {
-          border-color:
-            rgba(
-              132,
-              194,
-              181,
-              0.5
-            );
-          background:
-            linear-gradient(
-              145deg,
-              rgba(
-                86,
-                156,
-                142,
-                0.14
-              ),
-              rgba(
-                255,
-                255,
-                255,
-                0.025
-              )
-            );
+        .feedbackStatus {
+          margin-top: 10px;
+
+          color: #7cddd0;
+
+          font-size: 10px;
         }
 
-        .modeLabel {
-          font-weight:
-            720;
-          font-size:
-            14px;
-          margin-bottom:
-            9px;
-          color:
-            #e9f1ef;
+        .methodologyCard {
+          position: sticky;
+
+          top: 94px;
         }
 
-        .modeDescription {
-          color:
-            #8fa5a1;
-          font-size:
-            12px;
-          line-height:
-            1.55;
+        .methodIntro {
+          margin:
+            10px 0 20px;
+
+          color: #98ada9;
+
+          font-size: 11.5px;
+
+          line-height: 1.6;
         }
 
-        /*
-         * MAIN PANELS
-         */
+        .methodList {
+          display: flex;
 
-        .askPanel,
-        .answerCard,
-        .loadingCard {
+          flex-direction: column;
+
+          gap: 8px;
+        }
+
+        .methodItem {
+          padding: 12px;
+
           border:
             1px solid
             rgba(
@@ -1667,730 +1761,803 @@ Consider:
               255,
               0.08
             );
-          border-radius:
-            18px;
+
+          border-radius: 9px;
+
           background:
             rgba(
-              11,
-              24,
-              29,
-              0.79
-            );
-          box-shadow:
-            0 28px 80px
-            rgba(
-              0,
-              0,
-              0,
-              0.18
+              5,
+              19,
+              20,
+              0.34
             );
         }
 
-        .askPanel {
-          padding:
-            27px;
-        }
+        .methodMeta {
+          display: flex;
 
-        .askHeader,
-        .answerHeader,
-        .feedbackHeader,
-        .explainHeader,
-        .newsHeader {
-          display:
-            flex;
           justify-content:
             space-between;
-          gap:
-            20px;
-          align-items:
-            flex-start;
+
+          gap: 10px;
+
+          color: #55dbc6;
+
+          font-size: 8px;
+
+          font-weight: 800;
+
+          letter-spacing:
+            0.06em;
         }
 
-        .askTitle {
-          margin-top:
-            6px;
-          font-size:
-            19px;
-          font-weight:
-            670;
+        .methodItem strong {
+          display: block;
+
+          margin-top: 7px;
+
+          color: #dfeae7;
+
+          font-size: 11px;
+
+          line-height: 1.45;
         }
 
-        .shortcut {
-          color:
-            #718985;
-          font-size:
-            10px;
+        .methodCategory {
+          display: block;
+
+          margin-top: 5px;
+
+          color: #809a95;
+
+          font-size: 9px;
+
+          line-height: 1.45;
         }
 
-        .queryInput {
-          margin-top:
-            22px;
-          width:
-            100%;
-          min-height:
-            160px;
-          resize:
-            vertical;
+        .emptyMethod {
+          color: #91a7a3;
+
+          font-size: 11px;
+
+          line-height: 1.6;
+        }
+
+        .sectionActions {
+          display: flex;
+
+          gap: 8px;
+
+          flex-wrap: wrap;
+
+          justify-content:
+            flex-end;
+        }
+
+        .secondaryAction,
+        .quietAction {
+          min-height: 38px;
+
+          display: inline-flex;
+
+          align-items: center;
+
+          justify-content:
+            center;
+
           padding:
-            20px;
-          outline:
-            none;
-          border-radius:
-            13px;
+            0 13px;
+
+          border-radius: 7px;
+
+          font-size: 10px;
+
+          font-weight: 700;
+        }
+
+        .secondaryAction {
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.28
+            );
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.08
+            );
+
+          color: #65dfcd;
+        }
+
+        .quietAction {
           border:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.09
+              0.1
             );
+
           background:
-            #081317;
-          color:
-            #eaf2f1;
-          line-height:
-            1.65;
-        }
-
-        .queryInput:focus {
-          border-color:
             rgba(
-              121,
-              191,
-              177,
-              0.5
+              255,
+              255,
+              255,
+              0.025
             );
-          box-shadow:
-            0 0 0 3px
-            rgba(
-              111,
-              182,
-              168,
-              0.04
-            );
+
+          color: #b0c3bf;
+
+          cursor: pointer;
         }
 
-        .queryInput::placeholder {
-          color:
-            #617a75;
+        .loadingPanel {
+          padding: 24px;
+
+          color: #9eb2ae;
+
+          font-size: 12px;
         }
 
-        .askFooter {
-          display:
-            flex;
-          align-items:
-            center;
+        .regGrid {
+          display: grid;
+
+          grid-template-columns:
+            repeat(
+              3,
+              1fr
+            );
+
+          gap: 12px;
+        }
+
+        .regCard {
+          min-height: 270px;
+
+          display: flex;
+
+          flex-direction: column;
+
+          padding: 20px;
+        }
+
+        .regMeta {
+          display: flex;
+
           justify-content:
             space-between;
-          gap:
-            20px;
-          margin-top:
-            16px;
+
+          gap: 10px;
+
+          color: #62ddca;
+
+          font-size: 8.5px;
+
+          font-weight: 800;
+
+          letter-spacing:
+            0.08em;
         }
 
-        .inputHint {
-          color:
-            #7f9792;
-          font-size:
-            11px;
-          line-height:
-            1.5;
+        .regMeta span:last-child {
+          color: #8fa6a2;
+
+          font-weight: 600;
+
+          letter-spacing: 0;
         }
 
-        /*
-         * BUTTONS
-         */
+        .regCard h3 {
+          margin:
+            17px 0 10px;
 
-        .primaryButton,
-        .secondaryButton {
-          border:
-            0;
-          border-radius:
-            10px;
-          padding:
-            12px 18px;
-          font-weight:
-            750;
+          color: #eef7f5;
+
+          font-size: 15px;
+
+          line-height: 1.45;
         }
 
-        .primaryButton {
-          background:
-            #9dd6ca;
-          color:
-            #071311;
-          box-shadow:
-            0 8px 24px
-            rgba(
-              93,
-              160,
-              146,
-              0.13
-            );
-          transition:
-            150ms ease;
-        }
+        .regCard p {
+          margin: 0;
 
-        .primaryButton:hover:not(
-          :disabled
-        ) {
-          transform:
-            translateY(
-              -1px
-            );
-          box-shadow:
-            0 10px 28px
-            rgba(
-              93,
-              160,
-              146,
-              0.2
-            );
-        }
+          color: #9fb4b0;
 
-        .primaryButton:disabled {
-          opacity:
-            0.45;
-          cursor:
-            default;
-        }
+          font-size: 11px;
 
-        .primaryButton.small {
-          padding:
-            10px 14px;
-          font-size:
-            12px;
-        }
+          line-height: 1.65;
 
-        .secondaryButton {
-          background:
-            rgba(
-              255,
-              255,
-              255,
-              0.06
-            );
-          color:
-            #b8c8c6;
-        }
-
-        /*
-         * LOADING
-         */
-
-        .loadingCard {
-          margin-top:
-            18px;
-          padding:
-            28px;
-        }
-
-        .loadingTop {
           display:
-            flex;
-          gap:
-            14px;
-          align-items:
-            center;
+            -webkit-box;
+
+          -webkit-line-clamp: 4;
+
+          -webkit-box-orient:
+            vertical;
+
+          overflow: hidden;
         }
 
-        .loadingPulse {
-          width:
-            12px;
-          height:
-            12px;
-          border-radius:
-            50%;
+        .regActions {
+          display: flex;
+
+          align-items: center;
+
+          gap: 12px;
+
+          margin-top: auto;
+
+          padding-top: 20px;
+        }
+
+        .regActions button {
+          border: none;
+
           background:
-            #8ccbbe;
-          animation:
-            pulse
-            1.2s
-            infinite
-            ease-in-out;
+            transparent;
+
+          color: #5edac7;
+
+          padding: 0;
+
+          cursor: pointer;
+
+          font-size: 10px;
+
+          font-weight: 800;
         }
 
-        @keyframes pulse {
-          0%,
-          100% {
-            opacity:
-              0.3;
-          }
+        .regActions a {
+          color: #8fa7a3;
 
-          50% {
-            opacity:
-              1;
-          }
+          font-size: 10px;
         }
 
-        .loadingTitle {
-          font-weight:
-            700;
+        .modelIntro {
+          max-width: 700px;
+
+          margin-bottom: 30px;
         }
 
-        .loadingSub {
-          margin-top:
-            4px;
-          font-size:
-            12px;
-          color:
-            #809794;
-        }
+        .modelGrid {
+          display: grid;
 
-        .loadingGrid {
-          display:
-            grid;
           grid-template-columns:
             repeat(
               4,
               1fr
             );
-          gap:
-            8px;
-          margin-top:
-            22px;
+
+          gap: 11px;
         }
 
-        .loadingGrid span {
-          padding:
-            11px;
-          text-align:
-            center;
-          border-radius:
-            8px;
-          background:
-            rgba(
-              255,
-              255,
-              255,
-              0.03
-            );
-          color:
-            #78918c;
-          font-size:
-            11px;
+        @media (
+          max-width: 1000px
+        ) {
+          .modeGrid,
+          .modelGrid {
+            grid-template-columns:
+              repeat(
+                2,
+                1fr
+              );
+          }
+
+          .resultLayout {
+            grid-template-columns:
+              1fr;
+          }
+
+          .methodologyCard {
+            position: static;
+          }
+
+          .regGrid {
+            grid-template-columns:
+              1fr;
+          }
         }
 
-        /*
-         * ERROR
-         */
+        @media (
+          max-width: 720px
+        ) {
+          .workspaceHeader,
+          .sectionHeadingRow,
+          .inputFooter {
+            align-items:
+              flex-start;
 
-        .errorCard {
-          margin-top:
-            18px;
-          padding:
-            16px 18px;
-          border:
-            1px solid
-            rgba(
-              216,
-              111,
-              111,
-              0.3
-            );
-          background:
-            rgba(
-              163,
-              66,
-              66,
-              0.08
-            );
-          border-radius:
-            12px;
-          color:
-            #efb3b3;
+            flex-direction:
+              column;
+          }
+
+          .sectionActions {
+            justify-content:
+              flex-start;
+          }
+
+          .hero {
+            padding-top:
+              66px;
+          }
         }
 
-        /*
-         * ANSWER
-         */
+        @media (
+          max-width: 560px
+        ) {
+          .hero,
+          .modeGrid,
+          .workspaceSection,
+          .monitorSection,
+          .modelSection {
+            padding-left:
+              18px;
 
-        .answerCard {
-          margin-top:
-            18px;
-          padding:
-            32px;
+            padding-right:
+              18px;
+          }
+
+          .modeGrid,
+          .modelGrid {
+            grid-template-columns:
+              1fr;
+          }
+
+          .hero h1 {
+            font-size:
+              43px;
+          }
+
+          .heroText {
+            font-size:
+              17px;
+          }
+
+          .answerCard,
+          .methodologyCard {
+            padding:
+              20px;
+          }
+
+          .feedbackButtons {
+            flex-wrap:
+              wrap;
+          }
         }
+      `}</style>
+    </>
+  );
+}
 
-        .answerHeader {
-          padding-bottom:
-            24px;
+function SiteHeader({
+  active,
+}) {
+  return (
+    <>
+      <div className="siteHeader">
+        <div className="siteHeaderInner">
+          <Link
+            href="/"
+            className="brand"
+          >
+            <div className="brandBadge">
+              BRX
+            </div>
+
+            <div>
+              <div className="brandName">
+                BANKREGX
+              </div>
+
+              <div className="brandSub">
+                AI Control Intelligence for Banking
+              </div>
+            </div>
+          </Link>
+
+          <nav className="nav">
+            <Link
+              href="/"
+              className={
+                active === "home"
+                  ? "navLink active"
+                  : "navLink"
+              }
+            >
+              Home
+            </Link>
+
+            <Link
+              href="/regulatory-news"
+              className={
+                active === "regulatory"
+                  ? "navLink active"
+                  : "navLink"
+              }
+            >
+              Regulatory Intelligence
+            </Link>
+
+            <Link
+              href="/docs"
+              className={
+                active === "docs"
+                  ? "navLink active"
+                  : "navLink"
+              }
+            >
+              Docs
+            </Link>
+
+            <Link
+              href="/security-governance"
+              className={
+                active === "security"
+                  ? "navLink active"
+                  : "navLink"
+              }
+            >
+              Security &amp; Governance
+            </Link>
+          </nav>
+
+          <Link
+            href="/admin"
+            className="adminLink"
+          >
+            <span>
+              Governance Admin
+            </span>
+
+            <span className="privateTag">
+              PRIVATE
+            </span>
+          </Link>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .siteHeader {
+          position: sticky;
+
+          top: 0;
+
+          z-index: 50;
+
           border-bottom:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.06
+              0.1
             );
-        }
 
-        .answerHeader h2,
-        .newsHeader h2,
-        .foundation h2 {
-          margin:
-            7px 0 0;
-          font-size:
-            27px;
-          letter-spacing:
-            -0.025em;
-        }
-
-        .methodBadge {
-          color:
-            #b3ddd4;
-          font-size:
-            9px;
-          letter-spacing:
-            0.12em;
-          border:
-            1px solid
-            rgba(
-              137,
-              202,
-              189,
-              0.24
-            );
           background:
             rgba(
-              137,
-              202,
-              189,
-              0.06
+              10,
+              26,
+              28,
+              0.92
             );
+
+          backdrop-filter:
+            blur(16px);
+        }
+
+        .siteHeaderInner {
+          max-width: 1240px;
+
+          min-height: 76px;
+
+          margin: 0 auto;
+
           padding:
-            9px 11px;
-          border-radius:
-            999px;
+            0 28px;
+
+          display: flex;
+
+          align-items:
+            center;
+
+          gap: 28px;
         }
 
-        .categoryRow {
-          display:
-            flex;
-          flex-wrap:
-            wrap;
-          gap:
-            7px;
-          margin:
-            20px 0 0;
+        .brand {
+          display: flex;
+
+          align-items:
+            center;
+
+          gap: 11px;
+
+          flex-shrink: 0;
         }
 
-        .categoryChip {
-          font-size:
-            10px;
-          color:
-            #9bb1ad;
+        .brandBadge {
+          width: 38px;
+
+          height: 38px;
+
+          display: grid;
+
+          place-items:
+            center;
+
           border:
             1px solid
             rgba(
-              255,
-              255,
-              255,
-              0.08
+              45,
+              212,
+              191,
+              0.62
             );
-          border-radius:
-            999px;
-          padding:
-            6px 9px;
-        }
 
-        /*
-         * MARKDOWN
-         */
+          border-radius: 9px;
 
-        .markdown {
-          color:
-            #c9d6d4;
-          line-height:
-            1.77;
-          font-size:
-            14px;
-          padding:
-            20px 0;
-        }
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.13
+            );
 
-        .markdown h1,
-        .markdown h2,
-        .markdown h3,
-        .markdown h4 {
-          color:
-            #f0f6f5;
-          line-height:
-            1.25;
+          color: #6ee7d3;
+
+          font-size: 12px;
+
+          font-weight: 800;
+
           letter-spacing:
-            -0.018em;
+            0.06em;
         }
 
-        .markdown h3 {
-          font-size:
-            18px;
-          margin:
-            30px 0 10px;
-          padding-top:
-            5px;
+        .brandName {
+          color: #f7fcfb;
+
+          font-size: 14px;
+
+          font-weight: 800;
+
+          letter-spacing:
+            0.08em;
         }
 
-        .markdown p {
-          margin:
-            10px 0;
+        .brandSub {
+          margin-top: 2px;
+
+          color: #91aaa6;
+
+          font-size: 10px;
+
+          white-space: nowrap;
         }
 
-        .markdown ul,
-        .markdown ol {
-          padding-left:
-            22px;
-        }
+        .nav {
+          flex: 1;
 
-        .markdown li {
-          margin:
-            7px 0;
-        }
+          display: flex;
 
-        .markdown strong {
-          color:
-            #edf5f3;
-          font-weight:
-            700;
-        }
-
-        .markdown blockquote {
-          margin:
-            18px 0;
-          padding:
-            4px 0 4px
-            18px;
-          border-left:
-            2px solid
-            #78aa9f;
-          color:
-            #9bb0ac;
-        }
-
-        /*
-         * EXPLAINABLE INTELLIGENCE
-         */
-
-        .explainPanel {
-          margin-top:
-            12px;
-          border-radius:
-            14px;
-          border:
-            1px solid
-            rgba(
-              130,
-              194,
-              181,
-              0.17
-            );
-          background:
-            rgba(
-              73,
-              126,
-              116,
-              0.06
-            );
-          padding:
-            23px;
-        }
-
-        .explainHeader h3 {
-          margin:
-            6px 0 0;
-          font-size:
-            18px;
-        }
-
-        .guidanceCount {
-          font-size:
-            10px;
-          color:
-            #a0b5b1;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.08
-            );
-          border-radius:
-            999px;
-          padding:
-            7px 9px;
-        }
-
-        .explainIntro,
-        .explainNote {
-          color:
-            #8fa6a1;
-          line-height:
-            1.6;
-          font-size:
-            12px;
-        }
-
-        .guidanceList {
-          display:
-            grid;
-          gap:
-            9px;
-          margin:
-            17px 0;
-        }
-
-        .guidanceItem {
-          background:
-            rgba(
-              5,
-              15,
-              18,
-              0.56
-            );
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.065
-            );
-          border-radius:
-            10px;
-          padding:
-            14px;
-        }
-
-        .guidanceMeta {
-          display:
-            flex;
           justify-content:
-            space-between;
-          gap:
-            8px;
+            center;
+
+          align-items:
+            center;
+
+          gap: 25px;
         }
 
-        .guidanceId {
-          font-family:
-            ui-monospace,
-            SFMono-Regular,
-            Menlo,
-            monospace;
-          font-size:
-            9px;
-          color:
-            #809a95;
+        .navLink {
+          color: #bdd0cc;
+
+          font-size: 13px;
+
+          white-space: nowrap;
         }
 
-        .priority {
-          font-size:
-            8px;
-          font-weight:
-            800;
-          letter-spacing:
-            0.08em;
-          color:
-            #78908c;
+        .navLink:hover {
+          color: #f1f8f7;
         }
 
-        .priority-critical {
-          color:
-            #e2a7a7;
+        .navLink.active {
+          color: #64dfcb;
         }
 
-        .priority-high {
-          color:
-            #dfc790;
-        }
+        .adminLink {
+          flex-shrink: 0;
 
-        .guidanceTitle {
-          margin-top:
-            8px;
-          font-size:
-            13px;
-          font-weight:
-            700;
-          color:
-            #dce8e6;
-        }
+          display:
+            inline-flex;
 
-        .guidanceCategory {
-          margin-top:
-            4px;
-          font-size:
-            10px;
-          color:
-            #7b948f;
-        }
+          align-items:
+            center;
 
-        /*
-         * FEEDBACK
-         */
+          gap: 8px;
 
-        .feedbackPanel {
-          margin-top:
-            26px;
-          padding-top:
-            24px;
-          border-top:
+          min-height: 34px;
+
+          padding:
+            0 10px;
+
+          border:
             1px solid
             rgba(
-              255,
-              255,
-              255,
-              0.06
+              45,
+              212,
+              191,
+              0.33
             );
+
+          border-radius: 7px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.08
+            );
+
+          color: #c4d7d3;
+
+          font-size: 10px;
+
+          font-weight: 700;
         }
 
-        .feedbackTitle {
-          font-size:
-            14px;
-          font-weight:
-            700;
-        }
-
-        .feedbackSub {
-          font-size:
-            11px;
-          color:
-            #809994;
-          margin-top:
-            4px;
-        }
-
-        .responseRef {
-          font-size:
-            9px;
-          letter-spacing:
-            0.08em;
-          color:
-            #7d9993;
-        }
-
-        .feedbackButtons {
-          display:
-            flex;
-          flex-wrap:
-            wrap;
-          gap:
-            9px;
-          margin-top:
-            16px;
-        }
-
-        .feedbackButton {
+        .privateTag {
           padding:
-            9px 13px;
-          border-radius:
-            9px;
+            4px 6px;
+
+          border-radius: 5px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.16
+            );
+
+          color: #65e2cf;
+
+          font-size: 8px;
+
+          font-weight: 800;
+
+          letter-spacing:
+            0.11em;
+        }
+
+        @media (
+          max-width: 1100px
+        ) {
+          .siteHeaderInner {
+            gap: 18px;
+          }
+
+          .nav {
+            gap: 16px;
+          }
+
+          .navLink {
+            font-size: 12px;
+          }
+        }
+
+        @media (
+          max-width: 850px
+        ) {
+          .siteHeaderInner {
+            min-height: auto;
+
+            padding-top:
+              15px;
+
+            padding-bottom:
+              13px;
+
+            flex-wrap: wrap;
+          }
+
+          .brand {
+            flex: 1;
+          }
+
+          .adminLink {
+            margin-left: auto;
+          }
+
+          .nav {
+            order: 3;
+
+            flex:
+              0 0 100%;
+
+            width: 100%;
+
+            justify-content:
+              flex-start;
+
+            overflow-x: auto;
+
+            padding-bottom:
+              2px;
+          }
+        }
+
+        @media (
+          max-width: 560px
+        ) {
+          .siteHeaderInner {
+            padding-left:
+              18px;
+
+            padding-right:
+              18px;
+          }
+
+          .brandSub {
+            display: none;
+          }
+
+          .adminLink
+            > span:first-child {
+            display: none;
+          }
+        }
+      `}</style>
+    </>
+  );
+}
+
+function ModelCard({
+  number,
+  title,
+  text,
+}) {
+  return (
+    <>
+      <div className="modelCard">
+        <div className="number">
+          {number}
+        </div>
+
+        <h3>
+          {title}
+        </h3>
+
+        <p>
+          {text}
+        </p>
+      </div>
+
+      <style jsx>{`
+        .modelCard {
+          min-height: 170px;
+
+          padding: 20px;
+
           border:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.09
+              0.1
             );
+
+          border-radius: 12px;
+
           background:
             rgba(
               255,
@@ -2398,549 +2565,172 @@ Consider:
               255,
               0.03
             );
-          color:
-            #b4c5c2;
-          font-size:
-            11px;
         }
 
-        .approve:hover {
-          border-color:
-            rgba(
-              107,
-              197,
-              164,
-              0.45
-            );
-          color:
-            #b4dec9;
+        .number {
+          margin-bottom: 27px;
+
+          color: #55dbc6;
+
+          font-size: 9px;
+
+          font-weight: 800;
         }
 
-        .correct:hover {
-          border-color:
-            rgba(
-              199,
-              174,
-              105,
-              0.45
-            );
-          color:
-            #e2cf99;
-        }
-
-        .reject:hover {
-          border-color:
-            rgba(
-              209,
-              113,
-              113,
-              0.45
-            );
-          color:
-            #e3a5a5;
-        }
-
-        .correctionBox {
-          margin-top:
-            16px;
-          padding:
-            18px;
-          border-radius:
-            12px;
-          background:
-            rgba(
-              0,
-              0,
-              0,
-              0.15
-            );
-        }
-
-        .correctionBox label {
-          display:
-            block;
-          font-size:
-            11px;
-          color:
-            #96aaa6;
+        h3 {
           margin:
-            0 0 7px;
+            0 0 8px;
+
+          color: #edf6f4;
+
+          font-size: 15px;
         }
 
-        .correctionBox label span {
-          color:
-            #647b77;
-        }
+        p {
+          margin: 0;
 
-        .correctionInput,
-        .rationaleInput {
-          width:
-            100%;
-          resize:
-            vertical;
-          border-radius:
-            9px;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.08
-            );
-          background:
-            #071216;
-          color:
-            #dfe9e7;
-          outline:
-            none;
+          color: #a2b7b3;
+
+          font-size: 11.5px;
+
+          line-height: 1.65;
+        }
+      `}</style>
+    </>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <>
+      <div className="siteFooter">
+        <div>
+          <strong>
+            BankRegX
+          </strong>
+
+          <span>
+            AI Control Intelligence for Banking
+          </span>
+        </div>
+
+        <div className="footerLinks">
+          <Link href="/">
+            Home
+          </Link>
+
+          <Link href="/regulatory-news">
+            Regulatory Intelligence
+          </Link>
+
+          <Link href="/docs">
+            Docs
+          </Link>
+
+          <Link href="/security-governance">
+            Security &amp; Governance
+          </Link>
+
+          <Link href="/admin">
+            Governance Admin · Private
+          </Link>
+        </div>
+
+        <div className="footerNote">
+          BankRegX provides AI-assisted
+          professional analysis. Important
+          conclusions should be independently
+          reviewed and validated.
+        </div>
+      </div>
+
+      <style jsx>{`
+        .siteFooter {
+          max-width: 1120px;
+
+          margin: 0 auto;
+
           padding:
-            13px;
-          line-height:
-            1.6;
-          margin-bottom:
-            16px;
-        }
+            38px 28px 50px;
 
-        .correctionInput {
-          min-height:
-            130px;
-        }
-
-        .rationaleInput {
-          min-height:
-            80px;
-        }
-
-        .correctionActions {
-          display:
-            flex;
-          justify-content:
-            flex-end;
-          gap:
-            9px;
-        }
-
-        .feedbackStatus {
-          margin-top:
-            12px;
-          font-size:
-            11px;
-          color:
-            #9db7b1;
-        }
-
-        /*
-         * REGULATORY NEWS
-         */
-
-        .newsSection {
-          padding:
-            90px 0 30px;
-        }
-
-        .newsHeader p {
-          color:
-            #8da4a0;
-          max-width:
-            650px;
-          line-height:
-            1.6;
-          font-size:
-            13px;
-        }
-
-        .newsHeaderActions {
-          display:
-            flex;
-          align-items:
-            center;
-          gap:
-            8px;
-        }
-
-        .refreshButton,
-        .viewAllLink {
-          color:
-            #9bb0ac;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.08
-            );
-          background:
-            transparent;
-          border-radius:
-            9px;
-          padding:
-            9px 12px;
-          text-decoration:
-            none;
-          font-size:
-            10px;
-        }
-
-        .viewAllLink {
-          color:
-            #a5c9c1;
-          border-color:
-            rgba(
-              136,
-              200,
-              187,
-              0.18
-            );
-        }
-
-        .newsGrid {
-          display:
-            grid;
-          grid-template-columns:
-            repeat(
-              3,
-              1fr
-            );
-          gap:
-            12px;
-          margin-top:
-            25px;
-        }
-
-        .newsCard {
-          min-height:
-            250px;
-          padding:
-            20px;
-          border-radius:
-            14px;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.07
-            );
-          background:
-            rgba(
-              255,
-              255,
-              255,
-              0.02
-            );
-          display:
-            flex;
-          flex-direction:
-            column;
-          transition:
-            150ms ease;
-        }
-
-        .newsCard:hover {
-          border-color:
-            rgba(
-              135,
-              197,
-              184,
-              0.19
-            );
-          background:
-            rgba(
-              255,
-              255,
-              255,
-              0.028
-            );
-        }
-
-        .newsSource {
-          font-size:
-            9px;
-          letter-spacing:
-            0.11em;
-          color:
-            #7f9e97;
-          text-transform:
-            uppercase;
-        }
-
-        .newsCard h3 {
-          font-size:
-            15px;
-          line-height:
-            1.4;
-          margin:
-            13px 0 10px;
-        }
-
-        .newsCard p {
-          color:
-            #849b97;
-          line-height:
-            1.58;
-          font-size:
-            11px;
-          flex:
-            1;
-        }
-
-        .newsActions {
-          display:
-            flex;
-          justify-content:
-            space-between;
-          gap:
-            10px;
-          align-items:
-            center;
-          margin-top:
-            17px;
-        }
-
-        .newsActions button,
-        .newsActions a {
-          font-size:
-            10px;
-          color:
-            #9cc6bd;
-          background:
-            transparent;
-          border:
-            0;
-          padding:
-            0;
-          text-decoration:
-            none;
-        }
-
-        .newsLoading {
-          padding:
-            30px 0;
-          color:
-            #738b86;
-          font-size:
-            12px;
-        }
-
-        /*
-         * INTELLIGENCE MODEL
-         */
-
-        .foundation {
-          padding:
-            90px 0 80px;
-        }
-
-        .foundationIntro {
-          max-width:
-            680px;
-        }
-
-        .foundationIntro p {
-          color:
-            #899f9b;
-          line-height:
-            1.65;
-          font-size:
-            13px;
-        }
-
-        .foundationGrid {
-          display:
-            grid;
-          grid-template-columns:
-            repeat(
-              4,
-              1fr
-            );
-          gap:
-            1px;
-          margin-top:
-            30px;
-          background:
-            rgba(
-              255,
-              255,
-              255,
-              0.06
-            );
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.06
-            );
-          border-radius:
-            14px;
-          overflow:
-            hidden;
-        }
-
-        .foundationGrid > div {
-          padding:
-            24px;
-          background:
-            #091418;
-        }
-
-        .foundationGrid span {
-          color:
-            #66807a;
-          font-size:
-            9px;
-          font-family:
-            ui-monospace,
-            monospace;
-        }
-
-        .foundationGrid h3 {
-          margin:
-            12px 0 7px;
-          font-size:
-            17px;
-        }
-
-        .foundationGrid p {
-          color:
-            #819894;
-          line-height:
-            1.55;
-          font-size:
-            11px;
-        }
-
-        /*
-         * FOOTER
-         */
-
-        footer {
           border-top:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.06
+              0.08
             );
-          color:
-            #556d68;
-          padding:
-            25px 5vw;
-          display:
-            flex;
-          justify-content:
-            center;
-          align-items:
-            center;
-          gap:
-            10px;
-          font-size:
-            9px;
-          letter-spacing:
-            0.12em;
+
+          display: grid;
+
+          grid-template-columns:
+            1fr 1fr 1.4fr;
+
+          gap: 35px;
+
+          color: #8fa7a3;
+
+          font-size: 11px;
+
+          line-height: 1.65;
         }
 
-        footer div {
-          color:
-            #7a928d;
-          font-weight:
-            800;
+        strong {
+          display: block;
+
+          margin-bottom: 3px;
+
+          color: #c3d4d1;
+
+          font-size: 12px;
         }
 
-        /*
-         * RESPONSIVE
-         */
+        span {
+          display: block;
+        }
+
+        .footerLinks {
+          display: flex;
+
+          flex-direction:
+            column;
+
+          gap: 5px;
+        }
+
+        .footerLinks
+          :global(a) {
+          color: #a6bbb7;
+        }
+
+        .footerLinks
+          :global(a:hover) {
+          color: #65e0cd;
+        }
+
+        .footerNote {
+          color: #8ea5a1;
+        }
 
         @media (
-          max-width:
-            900px
+          max-width: 850px
         ) {
-          .modeGrid,
-          .foundationGrid {
-            grid-template-columns:
-              repeat(
-                2,
-                1fr
-              );
-          }
-
-          .newsGrid {
-            grid-template-columns:
-              repeat(
-                2,
-                1fr
-              );
-          }
-        }
-
-        @media (
-          max-width:
-            620px
-        ) {
-          .main {
-            width:
-              92vw;
-          }
-
-          .hero {
-            padding-top:
-              55px;
-          }
-
-          .modeGrid,
-          .newsGrid,
-          .foundationGrid {
+          .siteFooter {
             grid-template-columns:
               1fr;
           }
+        }
 
-          .askHeader,
-          .answerHeader,
-          .feedbackHeader,
-          .explainHeader,
-          .newsHeader,
-          .askFooter {
-            flex-direction:
-              column;
-          }
+        @media (
+          max-width: 560px
+        ) {
+          .siteFooter {
+            padding-left:
+              18px;
 
-          .newsHeaderActions {
-            width:
-              100%;
-          }
-
-          .answerCard,
-          .askPanel {
-            padding:
-              21px;
-          }
-
-          .loadingGrid {
-            grid-template-columns:
-              repeat(
-                2,
-                1fr
-              );
-          }
-
-          .methodBadge {
-            align-self:
-              flex-start;
-          }
-
-          .correctionActions {
-            flex-direction:
-              column;
-          }
-
-          footer {
-            flex-direction:
-              column;
+            padding-right:
+              18px;
           }
         }
       `}</style>

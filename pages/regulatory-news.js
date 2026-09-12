@@ -1,32 +1,103 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
-import BankRegXNav from "../components/BankRegXNav";
 
-export default function RegulatoryNews() {
-  const [
-    feeds,
-    setFeeds,
-  ] = useState([]);
+function createUserId() {
+  if (typeof window === "undefined") {
+    return "bankregx-regulatory";
+  }
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
+  const existing =
+    window.localStorage.getItem(
+      "bankregxUserId"
+    );
 
-  const [
-    error,
-    setError,
-  ] = useState("");
+  if (existing) {
+    return existing;
+  }
 
-  const [
-    search,
-    setSearch,
-  ] = useState("");
+  const generated =
+    `brx_${Date.now().toString(
+      36
+    )}_${Math.random()
+      .toString(36)
+      .slice(2, 9)}`;
+
+  window.localStorage.setItem(
+    "bankregxUserId",
+    generated
+  );
+
+  return generated;
+}
+
+function parseDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date =
+    new Date(value);
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? null
+    : date;
+}
+
+function formatDate(value) {
+  const date =
+    parseDate(value);
+
+  if (!date) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  ).format(date);
+}
+
+function formatRefreshTime(
+  value
+) {
+  const date =
+    parseDate(value);
+
+  if (!date) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }
+  ).format(date);
+}
+
+export default function RegulatoryIntelligence() {
+  const [feeds, setFeeds] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  const [search, setSearch] =
+    useState("");
 
   const [
     sourceFilter,
@@ -34,15 +105,14 @@ export default function RegulatoryNews() {
   ] = useState("all");
 
   const [
-    lastUpdated,
-    setLastUpdated,
+    refreshedAt,
+    setRefreshedAt,
   ] = useState(null);
 
-  /*
-   * =====================================================
-   * REGULATORY IMPACT ANALYSIS
-   * =====================================================
-   */
+  const [userId, setUserId] =
+    useState(
+      "bankregx-regulatory"
+    );
 
   const [
     selectedItem,
@@ -52,7 +122,7 @@ export default function RegulatoryNews() {
   const [
     analysis,
     setAnalysis,
-  ] = useState("");
+  ] = useState(null);
 
   const [
     analysisLoading,
@@ -64,219 +134,114 @@ export default function RegulatoryNews() {
     setAnalysisError,
   ] = useState("");
 
-  const [
-    expertGuidance,
-    setExpertGuidance,
-  ] = useState([]);
-
-  const [
-    detectedCategories,
-    setDetectedCategories,
-  ] = useState([]);
-
-  /*
-   * =====================================================
-   * INITIAL LOAD
-   * =====================================================
-   */
-
   useEffect(() => {
+    setUserId(
+      createUserId()
+    );
+
     loadFeeds();
   }, []);
 
-  async function loadFeeds() {
-    setLoading(true);
-    setError("");
-
-    try {
-      const response =
-        await fetch(
-          "/api/regulatory-news",
-          {
-            cache:
-              "no-store",
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            "Unable to load regulatory intelligence."
-        );
-      }
-
-      if (
-        !Array.isArray(data)
-      ) {
-        throw new Error(
-          "Regulatory intelligence returned an unexpected response."
-        );
-      }
-
-      setFeeds(data);
-
-      setLastUpdated(
-        new Date()
-      );
-    } catch (err) {
-      console.error(
-        "Failed to fetch regulatory news:",
-        err
-      );
-
-      setFeeds([]);
-
-      setError(
-        err.message ||
-          "Unable to load regulatory intelligence."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /*
-   * =====================================================
-   * NORMALISE FEEDS
-   * =====================================================
-   */
-
   const allItems =
     useMemo(() => {
-      const flattened = [];
+      const rows = [];
 
       feeds.forEach(
         (feed) => {
-          const items =
-            Array.isArray(
-              feed?.items
-            )
-              ? feed.items
-              : [];
+          const source =
+            feed?.source ||
+            feed?.name ||
+            "Regulator";
 
-          items.forEach(
-            (
-              item,
-              index
-            ) => {
-              flattened.push({
+          (
+            feed?.items || []
+          ).forEach(
+            (item) => {
+              rows.push({
                 ...item,
-
-		source:
-  		 item.source ||
-                 feed.name ||
-  		 feed.source ||
-                 "Regulatory source",
-
-		feedName:
-                 feed.name ||
-                 feed.source ||
-                 "Regulatory source",
-                
-                internalId:
-                  item.link ||
-                  `${feed.name}-${index}`,
+                source,
               });
             }
           );
         }
       );
 
-      /*
-       * Newest dated items first.
-       * Undated items remain available afterwards.
-       */
-
-      flattened.sort(
+      return rows.sort(
         (a, b) => {
-          const dateA =
-            getDateValue(
-              a.pubDate ||
-                a.date
-            );
+          const aDate =
+            parseDate(
+              a?.isoDate ||
+                a?.pubDate
+            )?.getTime() ||
+            0;
 
-          const dateB =
-            getDateValue(
-              b.pubDate ||
-                b.date
-            );
+          const bDate =
+            parseDate(
+              b?.isoDate ||
+                b?.pubDate
+            )?.getTime() ||
+            0;
 
           return (
-            dateB -
-            dateA
+            bDate -
+            aDate
           );
         }
       );
-
-      return flattened;
     }, [feeds]);
-
-  /*
-   * =====================================================
-   * SOURCE LIST
-   * =====================================================
-   */
 
   const sources =
     useMemo(() => {
-      return Array.from(
-        new Set(
+      return [
+        ...new Set(
           allItems
             .map(
               (item) =>
                 item.source
             )
-            .filter(
-              Boolean
-            )
-        )
-      ).sort();
+            .filter(Boolean)
+        ),
+      ].sort();
     }, [allItems]);
-
-  /*
-   * =====================================================
-   * FILTERED NEWS
-   * =====================================================
-   */
 
   const filteredItems =
     useMemo(() => {
-      const query =
+      const term =
         search
           .trim()
           .toLowerCase();
 
       return allItems.filter(
         (item) => {
+          const matchesSource =
+            sourceFilter ===
+              "all" ||
+            item.source ===
+              sourceFilter;
+
           if (
-            sourceFilter !==
-              "all" &&
-            item.source !==
-              sourceFilter
+            !matchesSource
           ) {
             return false;
           }
 
-          if (!query) {
+          if (!term) {
             return true;
           }
 
-          const text = [
-            item.title,
-            item.description,
-            item.summary,
-            item.contentSnippet,
-            item.source,
+          const haystack = [
+            item?.title,
+            item?.summary,
+            item?.description,
+            item?.contentSnippet,
+            item?.source,
           ]
             .filter(Boolean)
             .join(" ")
             .toLowerCase();
 
-          return text.includes(
-            query
+          return haystack.includes(
+            term
           );
         }
       );
@@ -286,169 +251,177 @@ export default function RegulatoryNews() {
       sourceFilter,
     ]);
 
-  /*
-   * =====================================================
-   * STATS
-   * =====================================================
-   */
-
   const latestPublished =
-    useMemo(() => {
-      const dated =
-        allItems
-          .map(
-            (item) =>
-              item.pubDate ||
-              item.date
-          )
-          .filter(Boolean)
-          .map(
-            (value) =>
-              new Date(
-                value
-              )
-          )
-          .filter(
-            (date) =>
-              !Number.isNaN(
-                date.getTime()
-              )
-          )
-          .sort(
-            (a, b) =>
-              b.getTime() -
-              a.getTime()
-          );
+    allItems.length
+      ? allItems[0]
+          ?.isoDate ||
+        allItems[0]
+          ?.pubDate
+      : null;
 
-      return dated[0] ||
-        null;
-    }, [allItems]);
+  async function loadFeeds() {
+    setLoading(true);
+    setError("");
 
-  /*
-   * =====================================================
-   * ANALYSE REGULATORY IMPACT
-   * =====================================================
-   */
+    try {
+      const response =
+        await fetch(
+          "/api/regulatory-news"
+        );
 
-  async function analyseImpact(
+      const text =
+        await response.text();
+
+      let data = [];
+
+      try {
+        data = text
+          ? JSON.parse(text)
+          : [];
+      } catch {
+        throw new Error(
+          text ||
+            "Unexpected regulatory feed response."
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            "Unable to load regulatory intelligence."
+        );
+      }
+
+      setFeeds(
+        Array.isArray(data)
+          ? data
+          : []
+      );
+
+      setRefreshedAt(
+        new Date()
+      );
+    } catch (loadError) {
+      console.error(
+        "Regulatory intelligence load failed:",
+        loadError
+      );
+
+      setError(
+        loadError?.message ||
+          "Unable to load regulatory intelligence."
+      );
+
+      setFeeds([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function analyseItem(
     item
   ) {
-    setSelectedItem(
-      item
+    if (
+      !item ||
+      analysisLoading
+    ) {
+      return;
+    }
+
+    setSelectedItem(item);
+
+    setAnalysis(null);
+
+    setAnalysisError("");
+
+    setAnalysisLoading(
+      true
     );
 
-    setAnalysis("");
-    setAnalysisError("");
-    setExpertGuidance([]);
-    setDetectedCategories([]);
-    setAnalysisLoading(true);
-
     const summary =
-      getSummary(item);
+      item?.summary ||
+      item?.description ||
+      item?.contentSnippet ||
+      "No detailed summary was available from the feed.";
 
-    const prompt = `
-Analyse the regulatory and control impact of the following development.
+    const prompt = `Analyse the potential control impact of the regulatory development below.
 
-REGULATORY DEVELOPMENT
+First establish what is actually stated by the regulator. Then identify what is not known, assess which banking products, businesses, processes, risks or controls may be affected, consider whether existing controls may already address the issue, and distinguish clearly between REGULATORY FACT, BANKREGX JUDGEMENT and RECOMMENDED ACTION.
 
-Source:
-${item.source || "Not specified"}
-
-Title:
-${item.title || "Not specified"}
-
-Published:
-${formatDate(item.pubDate || item.date)}
-
-Summary:
-${summary || "No summary was provided in the feed."}
-
-TASK
-
-Assess this development from a banking controls, risk and audit perspective.
-
-Clearly distinguish:
-
-1. Regulatory facts provided by the source.
-2. Information that is not known from the source.
-3. BankRegX professional judgement.
-4. Any assumptions.
-
-Consider:
-
-- the regulatory, conduct, prudential or operational risk involved;
-- potentially affected banking activities, processes or products;
-- whether existing controls may need to be assessed;
-- whether the development indicates:
-  - no material control impact;
-  - further assessment required;
-  - potential control enhancement;
-  - a potential control gap;
-- what evidence should be reviewed before reaching a conclusion;
-- whether immediate action is justified or whether further information is required.
-
-Do not invent regulatory obligations that are not established by the information provided.
-`.trim();
+Regulator: ${
+      item?.source ||
+      "Unknown"
+    }
+Title: ${
+      item?.title ||
+      "Untitled development"
+    }
+Published: ${formatDate(
+      item?.isoDate ||
+        item?.pubDate
+    )}
+Summary: ${summary}
+Source: ${
+      item?.link ||
+      "Not available"
+    }`;
 
     try {
       const response =
         await fetch(
           "/api/ask",
           {
-            method:
-              "POST",
+            method: "POST",
 
             headers: {
               "Content-Type":
                 "application/json",
             },
 
-            body:
-              JSON.stringify({
-                userId:
-                  "bankregx-regulatory-intelligence",
-
+            body: JSON.stringify(
+              {
                 query:
                   prompt,
-              }),
+
+                userId,
+              }
+            ),
           }
         );
 
-      const data =
-        await response.json();
+      const text =
+        await response.text();
+
+      let data = {};
+
+      try {
+        data = text
+          ? JSON.parse(text)
+          : {};
+      } catch {
+        throw new Error(
+          text ||
+            "BankRegX returned an unexpected response."
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
           data?.message ||
             data?.error ||
-            "Unable to analyse this regulatory development."
+            "Unable to analyse this development."
         );
       }
 
-      setAnalysis(
-        data.answer ||
-          "No analysis returned."
-      );
-
-      setExpertGuidance(
-        Array.isArray(
-          data.expertGuidance
-        )
-          ? data.expertGuidance
-          : []
-      );
-
-      setDetectedCategories(
-        Array.isArray(
-          data.detectedCategories
-        )
-          ? data.detectedCategories
-          : []
-      );
-    } catch (err) {
+      setAnalysis(data);
+    } catch (
+      analysisFailure
+    ) {
       setAnalysisError(
-        err.message ||
-          "Unable to analyse this regulatory development."
+        analysisFailure
+          ?.message ||
+          "Unable to analyse this development."
       );
     } finally {
       setAnalysisLoading(
@@ -458,723 +431,491 @@ Do not invent regulatory obligations that are not established by the information
   }
 
   function closeAnalysis() {
-    setSelectedItem(
-      null
-    );
+    setSelectedItem(null);
 
-    setAnalysis("");
+    setAnalysis(null);
+
     setAnalysisError("");
-    setExpertGuidance([]);
-    setDetectedCategories([]);
-  }
 
-  /*
-   * =====================================================
-   * DISPLAY HELPERS
-   * =====================================================
-   */
-
-  function getDateValue(
-    value
-  ) {
-    if (!value) {
-      return 0;
-    }
-
-    const date =
-      new Date(value);
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return 0;
-    }
-
-    return date.getTime();
-  }
-
-  function formatDate(
-    value
-  ) {
-    if (!value) {
-      return "Date not provided";
-    }
-
-    const date =
-      new Date(value);
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return "Date not provided";
-    }
-
-    return date.toLocaleDateString(
-      "en-GB",
-      {
-        day:
-          "2-digit",
-
-        month:
-          "short",
-
-        year:
-          "numeric",
-      }
+    setAnalysisLoading(
+      false
     );
   }
-
-  function formatDateTime(
-    value
-  ) {
-    if (!value) {
-      return "—";
-    }
-
-    return value.toLocaleString(
-      "en-GB",
-      {
-        day:
-          "2-digit",
-
-        month:
-          "short",
-
-        hour:
-          "2-digit",
-
-        minute:
-          "2-digit",
-      }
-    );
-  }
-
-  function getSummary(
-    item
-  ) {
-    const raw =
-      item.description ||
-      item.summary ||
-      item.contentSnippet ||
-      "";
-
-    return stripHtml(
-      raw
-    ).trim();
-  }
-
-  function stripHtml(
-    value
-  ) {
-    return String(
-      value || ""
-    )
-      .replace(
-        /<[^>]*>/g,
-        " "
-      )
-      .replace(
-        /&nbsp;/g,
-        " "
-      )
-      .replace(
-        /&amp;/g,
-        "&"
-      )
-      .replace(
-        /&quot;/g,
-        '"'
-      )
-      .replace(
-        /&#39;/g,
-        "'"
-      )
-      .replace(
-        /\s+/g,
-        " "
-      );
-  }
-
-  function displayCategory(
-    value
-  ) {
-    return String(
-      value || ""
-    )
-      .replace(
-        /_/g,
-        " "
-      )
-      .replace(
-        /\b\w/g,
-        (letter) =>
-          letter.toUpperCase()
-      );
-  }
-
-  /*
-   * =====================================================
-   * PAGE
-   * =====================================================
-   */
 
   return (
     <>
-      <div className="regPage">
-        <BankRegXNav
-          current="regulatory"
-        />
+      <main className="page">
+        <SiteHeader />
 
-        <main className="regMain">
-          {/*
-           * =================================================
-           * HERO
-           * =================================================
-           */}
-
-          <section className="regHero">
-            <div className="regHeroTop">
-              <div>
-                <div className="regEyebrow">
-                  MONITOR
-                </div>
-
-                <h1>
-                  Regulatory
-                  Intelligence
-                </h1>
-
-                <p>
-                  Monitor
-                  regulatory
-                  developments and
-                  assess what they
-                  could mean for
-                  banking risks,
-                  controls and audit
-                  priorities.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="regRefresh"
-                onClick={
-                  loadFeeds
-                }
-                disabled={
-                  loading
-                }
-              >
-                {loading
-                  ? "Refreshing..."
-                  : "Refresh intelligence"}
-              </button>
+        <section className="hero">
+          <div>
+            <div className="eyebrow">
+              MONITOR
             </div>
-          </section>
 
-          {/*
-           * =================================================
-           * STATS
-           * =================================================
-           */}
+            <h1>
+              Regulatory Intelligence
+            </h1>
 
-          <section className="regStats">
-            <Stat
-              label="Developments"
-              value={
-                allItems.length
-              }
-            />
+            <p>
+              Monitor regulatory
+              developments and assess what
+              they could mean for banking
+              risks, controls and audit
+              priorities.
+            </p>
+          </div>
 
-            <Stat
-              label="Sources"
-              value={
-                sources.length
-              }
-            />
+          <button
+            type="button"
+            className="refreshButton"
+            onClick={loadFeeds}
+            disabled={loading}
+          >
+            {loading
+              ? "Refreshing..."
+              : "Refresh feeds"}
+          </button>
+        </section>
 
-            <Stat
-              label="Latest published"
-              value={
-                latestPublished
-                  ? formatDate(
-                      latestPublished
-                    )
-                  : "—"
-              }
-              small
-            />
+        <section className="statsGrid">
+          <StatCard
+            label="Developments"
+            value={String(
+              allItems.length
+            )}
+          />
 
-            <Stat
-              label="Feed refreshed"
-              value={
-                lastUpdated
-                  ? formatDateTime(
-                      lastUpdated
-                    )
-                  : "—"
-              }
-              small
-            />
-          </section>
+          <StatCard
+            label="Sources"
+            value={String(
+              sources.length
+            )}
+          />
 
-          {/*
-           * =================================================
-           * FILTERS
-           * =================================================
-           */}
+          <StatCard
+            label="Latest published"
+            value={formatDate(
+              latestPublished
+            )}
+          />
 
-          <section className="regToolbar">
-            <div className="regFilterCopy">
-              <div className="regSectionEyebrow">
+          <StatCard
+            label="Feed refreshed"
+            value={formatRefreshTime(
+              refreshedAt
+            )}
+          />
+        </section>
+
+        <section className="feedSection">
+          <div className="feedHeading">
+            <div>
+              <div className="eyebrow">
                 LIVE FEEDS
               </div>
 
-              <strong>
-                Regulatory
-                developments
-              </strong>
+              <h2>
+                Regulatory developments
+              </h2>
+
+              <p>
+                Review current
+                developments from
+                connected regulatory
+                sources, then ask BankRegX
+                to assess potential control
+                implications.
+              </p>
             </div>
+          </div>
 
-            <div className="regFilters">
-              <input
-                value={
-                  search
-                }
-                onChange={(
-                  event
-                ) =>
-                  setSearch(
-                    event.target
-                      .value
-                  )
-                }
-                placeholder="Search developments..."
-              />
+          <div className="filters">
+            <input
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value
+                )
+              }
+              placeholder="Search developments..."
+            />
 
-              <select
-                value={
-                  sourceFilter
-                }
-                onChange={(
-                  event
-                ) =>
-                  setSourceFilter(
-                    event.target
-                      .value
-                  )
-                }
-              >
-                <option value="all">
-                  All sources
-                </option>
+            <select
+              value={
+                sourceFilter
+              }
+              onChange={(event) =>
+                setSourceFilter(
+                  event.target.value
+                )
+              }
+            >
+              <option value="all">
+                All sources
+              </option>
 
-                {sources.map(
-                  (source) => (
-                    <option
-                      key={
-                        source
-                      }
-                      value={
-                        source
-                      }
-                    >
-                      {
-                        source
-                      }
-                    </option>
-                  )
-                )}
-              </select>
+              {sources.map(
+                (source) => (
+                  <option
+                    key={
+                      source
+                    }
+                    value={
+                      source
+                    }
+                  >
+                    {
+                      source
+                    }
+                  </option>
+                )
+              )}
+            </select>
+          </div>
+
+          {error ? (
+            <div className="errorBox">
+              {error}
             </div>
-          </section>
+          ) : null}
 
-          {error && (
-            <div className="regError">
-              <strong>
-                Regulatory
-                intelligence could
-                not be loaded.
-              </strong>
-
-              <span>
-                {error}
-              </span>
-            </div>
-          )}
-
-          {/*
-           * =================================================
-           * NEWS GRID
-           * =================================================
-           */}
-
-          {loading ? (
-            <div className="regEmpty">
-              <div className="regLoader" />
-
+          {loading &&
+          allItems.length ===
+            0 ? (
+            <div className="statePanel">
               Loading regulatory
               intelligence...
             </div>
-          ) : filteredItems.length ===
+          ) : filteredItems.length >
             0 ? (
-            <div className="regEmpty">
-              No regulatory
-              developments match
-              this view.
-            </div>
-          ) : (
-            <section className="regGrid">
+            <div className="newsGrid">
               {filteredItems.map(
                 (
                   item,
                   index
-                ) => {
-                  const summary =
-                    getSummary(
-                      item
-                    );
+                ) => (
+                  <article
+                    className="newsCard"
+                    key={`${
+                      item?.link ||
+                      item?.title
+                    }-${index}`}
+                  >
+                    <div className="cardMeta">
+                      <span className="sourceBadge">
+                        {
+                          item?.source
+                        }
+                      </span>
 
-                  return (
-                    <article
-                      className="regCard"
-                      key={
-                        item.internalId ||
-                        index
-                      }
-                    >
-                      <div className="regCardTop">
-                        <span className="regSource">
-                          {
-                            item.source
-                          }
-                        </span>
-
-                        <span className="regDate">
-                          {formatDate(
-                            item.pubDate ||
-                              item.date
-                          )}
-                        </span>
-                      </div>
-
-                      <h2>
-                        {item.title ||
-                          "Regulatory development"}
-                      </h2>
-
-                      {summary && (
-                        <p>
-                          {summary.slice(
-                            0,
-                            320
-                          )}
-
-                          {summary.length >
-                          320
-                            ? "..."
-                            : ""}
-                        </p>
-                      )}
-
-                      {!summary && (
-                        <p className="regNoSummary">
-                          The feed did
-                          not provide a
-                          summary.
-                          BankRegX can
-                          still assess
-                          the headline
-                          and available
-                          source
-                          information.
-                        </p>
-                      )}
-
-                      <div className="regCardActions">
-                        <button
-                          type="button"
-                          className="regAnalyse"
-                          onClick={() =>
-                            analyseImpact(
-                              item
-                            )
-                          }
-                        >
-                          Analyse
-                          control
-                          impact
-                        </button>
-
-                        {item.link && (
-                          <a
-                            href={
-                              item.link
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Open source
-                            ↗
-                          </a>
+                      <span className="dateText">
+                        {formatDate(
+                          item?.isoDate ||
+                            item?.pubDate
                         )}
+                      </span>
+                    </div>
+
+                    <h3>
+                      {item?.title ||
+                        "Untitled regulatory development"}
+                    </h3>
+
+                    <p className="summary">
+                      {item?.summary ||
+                        item?.description ||
+                        item?.contentSnippet ||
+                        "The feed did not provide a substantive summary. BankRegX can still assess the headline and available source information."}
+                    </p>
+
+                    {item?.summarySource ? (
+                      <div className="summaryMeta">
+                        {item.summarySource ===
+                        "source_page"
+                          ? "Source-page summary"
+                          : item.summarySource ===
+                            "rss"
+                          ? "Feed summary"
+                          : "Headline only"}
                       </div>
-                    </article>
-                  );
-                }
+                    ) : null}
+
+                    <div className="cardActions">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          analyseItem(
+                            item
+                          )
+                        }
+                      >
+                        Analyse control impact
+                      </button>
+
+                      {item?.link ? (
+                        <a
+                          href={
+                            item.link
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open source ↗
+                        </a>
+                      ) : null}
+                    </div>
+                  </article>
+                )
               )}
-            </section>
+            </div>
+          ) : (
+            <div className="statePanel">
+              No developments match the
+              current search and source
+              filter.
+            </div>
           )}
-        </main>
+        </section>
 
-        <footer className="regFooter">
-          <strong>
-            BANKREGX
-          </strong>
+        <section className="disciplineSection">
+          <div className="disciplineIntro">
+            <div className="eyebrow">
+              BANKREGX REGULATORY INTELLIGENCE
+            </div>
 
-          <span>
-            REGULATORY
-            INTELLIGENCE
-          </span>
-        </footer>
-      </div>
+            <h2>
+              Source first. Judgement second.
+            </h2>
 
-      {/*
-       * ===================================================
-       * IMPACT ANALYSIS MODAL
-       * ===================================================
-       */}
+            <p>
+              BankRegX is designed to
+              separate authoritative
+              regulatory facts from
+              assumptions, professional
+              interpretation and
+              recommended actions.
+            </p>
+          </div>
 
-      {selectedItem && (
-        <div
-          className="regModalBackdrop"
-          onClick={
-            closeAnalysis
-          }
-        >
+          <div className="disciplineGrid">
+            <DisciplineCard
+              number="01"
+              title="Regulatory fact"
+              text="Start with what the regulator or authoritative source actually states."
+            />
+
+            <DisciplineCard
+              number="02"
+              title="Unknowns"
+              text="Identify material information that is not established by the publication."
+            />
+
+            <DisciplineCard
+              number="03"
+              title="BankRegX judgement"
+              text="Assess likely relevance to businesses, risks, processes and controls."
+            />
+
+            <DisciplineCard
+              number="04"
+              title="Recommended action"
+              text="Identify proportionate next steps without assuming every development creates a new control gap."
+            />
+          </div>
+        </section>
+
+        <SiteFooter />
+
+        {selectedItem ? (
           <div
-            className="regModal"
-            onClick={(
-              event
-            ) =>
-              event.stopPropagation()
+            className="modalBackdrop"
+            role="presentation"
+            onMouseDown={
+              closeAnalysis
             }
           >
-            <div className="regModalHeader">
-              <div>
-                <div className="regEyebrow">
-                  CONTROL IMPACT
-                  ANALYSIS
-                </div>
-
-                <h2>
-                  Regulatory
-                  assessment
-                </h2>
-
-                <div className="regModalSource">
-                  {
-                    selectedItem.source
-                  }{" "}
-                  ·{" "}
-                  {formatDate(
-                    selectedItem.pubDate ||
-                      selectedItem.date
-                  )}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="regClose"
-                onClick={
-                  closeAnalysis
-                }
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="regSelectedDevelopment">
-              <div className="regSectionLabel">
-                DEVELOPMENT
-              </div>
-
-              <h3>
-                {
-                  selectedItem.title
-                }
-              </h3>
-
-              {selectedItem.link && (
-                <a
-                  href={
-                    selectedItem.link
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  View regulatory
-                  source ↗
-                </a>
-              )}
-            </div>
-
-            {analysisLoading && (
-              <div className="regAnalysisLoading">
-                <div className="regLoader" />
-
+            <div
+              className="analysisModal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Regulatory control impact analysis"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+            >
+              <div className="modalHeader">
                 <div>
-                  <strong>
-                    BankRegX is
-                    assessing
-                    regulatory
-                    impact
-                  </strong>
-
-                  <span>
-                    Considering risk,
-                    controls,
-                    evidence and
-                    expert
-                    methodology.
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {analysisError && (
-              <div className="regError">
-                {
-                  analysisError
-                }
-              </div>
-            )}
-
-            {analysis &&
-              !analysisLoading && (
-                <>
-                  {detectedCategories.length >
-                    0 && (
-                    <div className="regCategories">
-                      {detectedCategories.map(
-                        (
-                          category
-                        ) => (
-                          <span
-                            key={
-                              category
-                            }
-                          >
-                            {displayCategory(
-                              category
-                            )}
-                          </span>
-                        )
-                      )}
-                    </div>
-                  )}
-
-                  <div className="regMarkdown">
-                    <ReactMarkdown>
-                      {analysis}
-                    </ReactMarkdown>
+                  <div className="eyebrow">
+                    CONTROL IMPACT ANALYSIS
                   </div>
 
-                  {expertGuidance.length >
-                    0 && (
-                    <div className="regMethodology">
-                      <div className="regMethodologyHeader">
-                        <div>
-                          <div className="regSectionLabel">
-                            EXPLAINABLE
-                            INTELLIGENCE
-                          </div>
+                  <h2>
+                    {
+                      selectedItem
+                        ?.title
+                    }
+                  </h2>
 
-                          <h3>
-                            Methodology
-                            informing
-                            this
-                            assessment
-                          </h3>
+                  <div className="modalMeta">
+                    {
+                      selectedItem
+                        ?.source
+                    }{" "}
+                    ·{" "}
+                    {formatDate(
+                      selectedItem
+                        ?.isoDate ||
+                        selectedItem
+                          ?.pubDate
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="closeButton"
+                  onClick={
+                    closeAnalysis
+                  }
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="modalBody">
+                {analysisLoading ? (
+                  <div className="analysisState">
+                    BankRegX is assessing
+                    the potential control
+                    impact...
+                  </div>
+                ) : analysisError ? (
+                  <div className="analysisError">
+                    {
+                      analysisError
+                    }
+                  </div>
+                ) : analysis?.answer ? (
+                  <>
+                    <div className="markdown">
+                      <ReactMarkdown
+                        components={{
+                          a: ({
+                            node,
+                            ...props
+                          }) => (
+                            <a
+                              {...props}
+                              target="_blank"
+                              rel="noreferrer"
+                            />
+                          ),
+                        }}
+                      >
+                        {
+                          analysis.answer
+                        }
+                      </ReactMarkdown>
+                    </div>
+
+                    {Array.isArray(
+                      analysis?.browsedPages
+                    ) &&
+                    analysis
+                      .browsedPages
+                      .length >
+                      0 ? (
+                      <div className="sourceBlock">
+                        <div className="smallLabel">
+                          SOURCES USED
                         </div>
 
-                        <span>
-                          {
-                            expertGuidance.length
-                          }{" "}
-                          principles
-                        </span>
-                      </div>
-
-                      <div className="regGuidanceList">
-                        {expertGuidance.map(
-                          (
-                            item
-                          ) => (
-                            <div
-                              key={
-                                item.id ||
-                                item.guidanceId
-                              }
-                            >
-                              <div className="regGuidanceTop">
-                                <span>
-                                  {
-                                    item.guidanceId
-                                  }
-                                </span>
-
-                                <small>
-                                  {String(
-                                    item.priority ||
-                                      "medium"
-                                  ).toUpperCase()}
-                                </small>
-                              </div>
-
-                              <strong>
-                                {
-                                  item.title
+                        <div className="sourceLinks">
+                          {analysis.browsedPages.map(
+                            (
+                              source,
+                              index
+                            ) => (
+                              <a
+                                key={`${
+                                  source?.url ||
+                                  index
+                                }`}
+                                href={
+                                  source?.url
                                 }
-                              </strong>
-
-                              <p>
-                                {displayCategory(
-                                  item.category
-                                )}
-                              </p>
-                            </div>
-                          )
-                        )}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {source?.title ||
+                                  `Source ${
+                                    index +
+                                    1
+                                  }`}{" "}
+                                ↗
+                              </a>
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </>
-              )}
-          </div>
-        </div>
-      )}
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
 
-      <style jsx global>{`
+              <div className="modalFooter">
+                {selectedItem?.link ? (
+                  <a
+                    href={
+                      selectedItem.link
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open original source ↗
+                  </a>
+                ) : (
+                  <span />
+                )}
+
+                <button
+                  type="button"
+                  onClick={
+                    closeAnalysis
+                  }
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </main>
+
+      <style jsx>{`
         * {
-          box-sizing:
-            border-box;
+          box-sizing: border-box;
         }
 
-        html,
-        body {
+        :global(html) {
+          background: #0a1a1c;
+
+          scroll-behavior:
+            smooth;
+        }
+
+        :global(body) {
           margin: 0;
-          min-height: 100%;
-          background:
-            #071014;
-          color:
-            #edf5f3;
+
+          background: #0a1a1c;
+
+          color: #f4fbfa;
+
           font-family:
             Inter,
             ui-sans-serif,
@@ -1185,261 +926,240 @@ Do not invent regulatory obligations that are not established by the information
             sans-serif;
         }
 
-        body {
-          background:
-            radial-gradient(
-              circle at top left,
-              rgba(
-                63,
-                139,
-                125,
-                0.12
-              ),
-              transparent 34%
-            ),
-            #071014;
+        :global(a) {
+          color: inherit;
+
+          text-decoration:
+            none !important;
         }
 
-        button,
-        input,
-        select {
+        :global(button),
+        :global(input),
+        :global(select) {
           font: inherit;
         }
 
-        button {
-          cursor:
-            pointer;
-        }
+        .page {
+          min-height: 100vh;
 
-        .regPage {
-          min-height:
-            100vh;
-        }
-
-        .regMain {
-          width:
-            min(
-              1180px,
-              90vw
+          background:
+            radial-gradient(
+              circle at 18% 0%,
+              rgba(
+                20,
+                184,
+                166,
+                0.14
+              ),
+              transparent 34%
+            ),
+            linear-gradient(
+              180deg,
+              #0a1a1c 0%,
+              #0d2022 52%,
+              #091719 100%
             );
-          margin:
-            0 auto;
         }
 
-        /*
-         * HERO
-         */
+        .hero {
+          max-width: 1120px;
 
-        .regHero {
+          margin: 0 auto;
+
           padding:
-            72px 0 32px;
-        }
+            90px 28px 46px;
 
-        .regHeroTop {
-          display:
-            flex;
+          display: flex;
+
           justify-content:
             space-between;
+
           align-items:
-            flex-start;
-          gap:
-            40px;
+            flex-end;
+
+          gap: 35px;
         }
 
-        .regEyebrow,
-        .regSectionEyebrow {
-          color:
-            #87c3b7;
-          font-size:
-            9px;
-          font-weight:
-            800;
+        .eyebrow,
+        .smallLabel {
+          color: #55dbc6;
+
+          font-size: 10px;
+
+          font-weight: 800;
+
           letter-spacing:
-            0.17em;
+            0.18em;
         }
 
-        .regHero h1 {
+        .hero h1 {
           margin:
-            12px 0 14px;
+            15px 0 16px;
+
+          color: #f8fcfb;
+
           font-size:
             clamp(
               44px,
-              5vw,
-              66px
+              6vw,
+              68px
             );
-          line-height:
-            1;
+
+          line-height: 1;
+
           letter-spacing:
             -0.045em;
-          color:
-            #f1f6f5;
         }
 
-        .regHero p {
-          max-width:
-            730px;
-          color:
-            #9eb2ae;
-          line-height:
-            1.7;
-          font-size:
-            14px;
+        .hero p {
+          max-width: 720px;
+
+          margin: 0;
+
+          color: #d1dfdc;
+
+          font-size: 18px;
+
+          line-height: 1.65;
         }
 
-        .regRefresh {
+        .refreshButton {
+          min-height: 42px;
+
+          padding:
+            0 15px;
+
+          flex-shrink: 0;
+
           border:
             1px solid
             rgba(
-              137,
-              202,
-              189,
-              0.24
+              45,
+              212,
+              191,
+              0.32
             );
+
+          border-radius: 8px;
+
           background:
             rgba(
-              86,
-              156,
-              142,
-              0.07
+              20,
+              184,
+              166,
+              0.09
             );
-          color:
-            #b7dcd4;
-          border-radius:
-            9px;
+
+          color: #68dfcd;
+
+          cursor: pointer;
+
+          font-size: 11px;
+
+          font-weight: 800;
+        }
+
+        .refreshButton:disabled {
+          opacity: 0.55;
+
+          cursor: default;
+        }
+
+        .statsGrid {
+          max-width: 1120px;
+
+          margin: 0 auto;
+
           padding:
-            10px 13px;
-          font-size:
-            10px;
-        }
+            0 28px 66px;
 
-        .regRefresh:hover:not(
-          :disabled
-        ) {
-          color:
-            #f1f8f6;
-          border-color:
-            rgba(
-              137,
-              202,
-              189,
-              0.4
-            );
-        }
+          display: grid;
 
-        .regRefresh:disabled {
-          opacity:
-            0.5;
-        }
-
-        /*
-         * STATS
-         */
-
-        .regStats {
-          display:
-            grid;
           grid-template-columns:
             repeat(
               4,
-              1fr
+              minmax(
+                0,
+                1fr
+              )
             );
-          gap:
-            10px;
-          margin:
-            18px 0;
+
+          gap: 11px;
         }
 
-        .regStat {
+        .feedSection,
+        .disciplineSection {
+          max-width: 1120px;
+
+          margin: 0 auto;
+
           padding:
-            19px;
-          border:
+            74px 28px;
+
+          border-top:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.075
-            );
-          border-radius:
-            12px;
-          background:
-            rgba(
-              255,
-              255,
-              255,
-              0.026
+              0.08
             );
         }
 
-        .regStat span {
-          display:
-            block;
-          color:
-            #82a09a;
-          font-size:
-            9px;
-          text-transform:
-            uppercase;
-          letter-spacing:
-            0.11em;
+        .feedHeading,
+        .disciplineIntro {
+          max-width: 720px;
+
+          margin-bottom: 28px;
         }
 
-        .regStat strong {
-          display:
-            block;
-          margin-top:
-            9px;
-          color:
-            #edf5f3;
-          font-size:
-            29px;
-        }
-
-        .regStat.regStatSmall
-          strong {
-          margin-top:
-            11px;
-          font-size:
-            14px;
-          font-weight:
-            650;
-        }
-
-        /*
-         * TOOLBAR
-         */
-
-        .regToolbar {
-          display:
-            flex;
-          justify-content:
-            space-between;
-          align-items:
-            flex-end;
-          gap:
-            20px;
+        .feedHeading h2,
+        .disciplineIntro h2,
+        .modalHeader h2 {
           margin:
-            28px 0 19px;
+            8px 0 10px;
+
+          color: #f7fcfb;
+
+          font-size: 30px;
+
+          letter-spacing:
+            -0.025em;
         }
 
-        .regFilterCopy strong {
-          display:
-            block;
-          margin-top:
-            7px;
-          font-size:
-            19px;
+        .feedHeading p,
+        .disciplineIntro p {
+          margin: 0;
+
+          color: #a2b7b3;
+
+          font-size: 14px;
+
+          line-height: 1.7;
         }
 
-        .regFilters {
-          display:
-            flex;
-          gap:
-            8px;
+        .filters {
+          display: grid;
+
+          grid-template-columns:
+            minmax(
+              0,
+              1fr
+            )
+            210px;
+
+          gap: 10px;
+
+          margin-bottom: 20px;
         }
 
-        .regFilters input,
-        .regFilters select {
+        .filters input,
+        .filters select {
+          min-height: 44px;
+
+          padding:
+            0 13px;
+
           border:
             1px solid
             rgba(
@@ -1448,51 +1168,95 @@ Do not invent regulatory obligations that are not established by the information
               255,
               0.1
             );
+
+          border-radius: 8px;
+
+          outline: none;
+
           background:
-            #071317;
-          color:
-            #e6efed;
-          border-radius:
-            9px;
-          padding:
-            11px 12px;
-          outline:
-            none;
+            rgba(
+              5,
+              19,
+              20,
+              0.48
+            );
+
+          color: #dce8e5;
+
+          font-size: 12px;
         }
 
-        .regFilters input {
-          width:
-            280px;
+        .filters input::placeholder {
+          color: #78918d;
         }
 
-        .regFilters select {
-          width:
-            180px;
-        }
-
-        .regFilters input::placeholder {
-          color:
-            #718a85;
-        }
-
-        .regFilters input:focus,
-        .regFilters select:focus {
+        .filters input:focus,
+        .filters select:focus {
           border-color:
             rgba(
-              129,
-              199,
-              185,
-              0.52
+              45,
+              212,
+              191,
+              0.48
             );
         }
 
-        /*
-         * GRID
-         */
+        .errorBox,
+        .statePanel {
+          padding: 18px;
 
-        .regGrid {
-          display:
-            grid;
+          border-radius: 10px;
+
+          font-size: 12px;
+        }
+
+        .errorBox {
+          margin-bottom: 18px;
+
+          border:
+            1px solid
+            rgba(
+              248,
+              113,
+              113,
+              0.28
+            );
+
+          background:
+            rgba(
+              248,
+              113,
+              113,
+              0.06
+            );
+
+          color: #fecaca;
+        }
+
+        .statePanel {
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.03
+            );
+
+          color: #9fb3af;
+        }
+
+        .newsGrid {
+          display: grid;
+
           grid-template-columns:
             repeat(
               2,
@@ -1501,379 +1265,321 @@ Do not invent regulatory obligations that are not established by the information
                 1fr
               )
             );
-          gap:
-            12px;
-          margin-bottom:
-            80px;
+
+          gap: 13px;
         }
 
-        .regCard {
-          display:
-            flex;
+        .newsCard {
+          min-height: 310px;
+
+          padding: 22px;
+
+          display: flex;
+
           flex-direction:
             column;
-          min-height:
-            285px;
-          padding:
-            22px;
+
           border:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.075
+              0.1
             );
-          border-radius:
-            14px;
+
+          border-radius: 13px;
+
           background:
             rgba(
-              10,
-              23,
-              28,
-              0.78
-            );
-          transition:
-            150ms ease;
-        }
-
-        .regCard:hover {
-          border-color:
-            rgba(
-              137,
-              202,
-              189,
-              0.2
-            );
-          transform:
-            translateY(
-              -1px
+              255,
+              255,
+              255,
+              0.03
             );
         }
 
-        .regCardTop {
-          display:
-            flex;
+        .cardMeta {
+          display: flex;
+
           justify-content:
             space-between;
-          gap:
-            12px;
+
           align-items:
             center;
+
+          gap: 12px;
         }
 
-        .regSource {
-          color:
-            #90b0a9;
-          font-size:
-            8px;
-          font-weight:
-            750;
+        .sourceBadge {
+          padding:
+            5px 7px;
+
+          border-radius: 6px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.12
+            );
+
+          color: #67dfcd;
+
+          font-size: 8px;
+
+          font-weight: 800;
+
           letter-spacing:
-            0.1em;
+            0.09em;
+
           text-transform:
             uppercase;
         }
 
-        .regDate {
-          color:
-            #728984;
-          font-size:
-            9px;
+        .dateText {
+          color: #8fa6a2;
+
+          font-size: 9.5px;
         }
 
-        .regCard h2 {
+        .newsCard h3 {
           margin:
-            14px 0 11px;
-          color:
-            #edf4f2;
-          font-size:
-            17px;
-          line-height:
-            1.45;
+            18px 0 11px;
+
+          color: #eef7f5;
+
+          font-size: 17px;
+
+          line-height: 1.45;
+
+          letter-spacing:
+            -0.012em;
         }
 
-        .regCard p {
-          margin:
-            0;
-          color:
-            #9aadaa;
-          line-height:
-            1.65;
-          font-size:
-            11px;
-          flex:
-            1;
-        }
+        .summary {
+          margin: 0;
 
-        .regCard
-          .regNoSummary {
-          color:
-            #809792;
-          font-style:
-            italic;
-        }
+          color: #a3b8b4;
 
-        .regCardActions {
+          font-size: 12px;
+
+          line-height: 1.7;
+
           display:
-            flex;
-          justify-content:
-            space-between;
-          align-items:
-            center;
-          gap:
-            12px;
-          margin-top:
-            23px;
-          padding-top:
-            15px;
-          border-top:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.055
-            );
+            -webkit-box;
+
+          -webkit-line-clamp:
+            5;
+
+          -webkit-box-orient:
+            vertical;
+
+          overflow: hidden;
         }
 
-        .regAnalyse {
+        .summaryMeta {
+          margin-top: 10px;
+
+          color: #728d88;
+
+          font-size: 9px;
+        }
+
+        .cardActions {
+          display: flex;
+
+          align-items: center;
+
+          gap: 14px;
+
+          margin-top: auto;
+
+          padding-top: 22px;
+        }
+
+        .cardActions button {
+          min-height: 36px;
+
+          padding:
+            0 11px;
+
           border:
             1px solid
             rgba(
-              132,
-              200,
-              186,
-              0.23
+              45,
+              212,
+              191,
+              0.28
             );
+
+          border-radius: 7px;
+
           background:
             rgba(
-              87,
-              158,
-              144,
-              0.07
+              20,
+              184,
+              166,
+              0.08
             );
-          color:
-            #b6ddd4;
-          border-radius:
-            8px;
-          padding:
-            8px 10px;
-          font-size:
-            10px;
+
+          color: #67dfcd;
+
+          cursor: pointer;
+
+          font-size: 10px;
+
+          font-weight: 800;
         }
 
-        .regAnalyse:hover {
-          color:
-            #f0f7f5;
+        .cardActions button:hover {
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.13
+            );
+
           border-color:
             rgba(
-              132,
-              200,
-              186,
-              0.38
-            );
-        }
-
-        .regCardActions a {
-          color:
-            #91aaa5;
-          text-decoration:
-            none;
-          font-size:
-            10px;
-        }
-
-        .regCardActions a:hover {
-          color:
-            #d9e7e4;
-        }
-
-        /*
-         * ERROR / EMPTY
-         */
-
-        .regError {
-          display:
-            flex;
-          flex-direction:
-            column;
-          gap:
-            5px;
-          margin:
-            15px 0;
-          padding:
-            15px;
-          border:
-            1px solid
-            rgba(
-              202,
-              109,
-              109,
-              0.25
-            );
-          background:
-            rgba(
-              161,
-              65,
-              65,
-              0.07
-            );
-          border-radius:
-            10px;
-          color:
-            #dba7a7;
-          font-size:
-            11px;
-        }
-
-        .regEmpty {
-          min-height:
-            180px;
-          margin-bottom:
-            80px;
-          display:
-            flex;
-          align-items:
-            center;
-          justify-content:
-            center;
-          gap:
-            12px;
-          color:
-            #819a94;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.06
-            );
-          border-radius:
-            13px;
-        }
-
-        .regLoader {
-          width:
-            10px;
-          height:
-            10px;
-          border-radius:
-            50%;
-          background:
-            #8bcabd;
-          animation:
-            regPulse
-            1.1s
-            infinite
-            ease-in-out;
-        }
-
-        @keyframes regPulse {
-          0%,
-          100% {
-            opacity:
-              0.3;
-          }
-
-          50% {
-            opacity:
-              1;
-          }
-        }
-
-        /*
-         * MODAL
-         */
-
-        .regModalBackdrop {
-          position:
-            fixed;
-          inset:
-            0;
-          z-index:
-            100;
-          overflow-y:
-            auto;
-          padding:
-            30px;
-          background:
-            rgba(
-              0,
-              0,
-              0,
-              0.74
-            );
-          backdrop-filter:
-            blur(
-              7px
-            );
-        }
-
-        .regModal {
-          width:
-            min(
-              920px,
-              100%
-            );
-          margin:
-            0 auto;
-          padding:
-            29px;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.1
-            );
-          border-radius:
-            18px;
-          background:
-            #09161a;
-          box-shadow:
-            0 40px 100px
-            rgba(
-              0,
-              0,
-              0,
+              45,
+              212,
+              191,
               0.46
             );
         }
 
-        .regModalHeader,
-        .regMethodologyHeader {
-          display:
-            flex;
+        .cardActions a {
+          color: #9ab0ac;
+
+          font-size: 10px;
+        }
+
+        .disciplineGrid {
+          display: grid;
+
+          grid-template-columns:
+            repeat(
+              4,
+              1fr
+            );
+
+          gap: 11px;
+        }
+
+        .modalBackdrop {
+          position: fixed;
+
+          inset: 0;
+
+          z-index: 100;
+
+          display: grid;
+
+          place-items: center;
+
+          padding: 24px;
+
+          background:
+            rgba(
+              2,
+              9,
+              10,
+              0.76
+            );
+
+          backdrop-filter:
+            blur(8px);
+        }
+
+        .analysisModal {
+          width:
+            min(
+              930px,
+              100%
+            );
+
+          max-height:
+            calc(
+              100vh -
+              48px
+            );
+
+          display: flex;
+
+          flex-direction:
+            column;
+
+          overflow: hidden;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.12
+            );
+
+          border-radius: 16px;
+
+          background: #0d2022;
+
+          box-shadow:
+            0 25px 80px
+            rgba(
+              0,
+              0,
+              0,
+              0.35
+            );
+        }
+
+        .modalHeader {
+          padding: 24px;
+
+          display: flex;
+
           justify-content:
             space-between;
-          align-items:
-            flex-start;
-          gap:
-            20px;
+
+          gap: 24px;
+
+          border-bottom:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.09
+            );
         }
 
-        .regModalHeader h2 {
-          margin:
-            7px 0 5px;
-          font-size:
-            27px;
+        .modalHeader h2 {
+          max-width: 760px;
+
+          font-size: 23px;
+
+          line-height: 1.35;
         }
 
-        .regModalSource {
-          color:
-            #829b95;
-          font-size:
-            10px;
+        .modalMeta {
+          margin-top: 8px;
+
+          color: #91a9a5;
+
+          font-size: 10px;
         }
 
-        .regClose {
-          width:
-            36px;
-          height:
-            36px;
+        .closeButton {
+          width: 34px;
+
+          height: 34px;
+
+          flex-shrink: 0;
+
           border:
             1px solid
             rgba(
@@ -1882,407 +1588,307 @@ Do not invent regulatory obligations that are not established by the information
               255,
               0.1
             );
-          border-radius:
-            9px;
+
+          border-radius: 8px;
+
           background:
             rgba(
               255,
               255,
               255,
-              0.035
+              0.03
             );
-          color:
-            #a9bdb9;
-          font-size:
-            20px;
+
+          color: #cbdad7;
+
+          cursor: pointer;
+
+          font-size: 21px;
+
+          line-height: 1;
         }
 
-        .regSelectedDevelopment {
-          margin-top:
-            24px;
-          padding:
-            18px;
+        .modalBody {
+          overflow-y: auto;
+
+          padding: 24px;
+        }
+
+        .analysisState,
+        .analysisError {
+          padding: 18px;
+
+          border-radius: 10px;
+
+          font-size: 12px;
+        }
+
+        .analysisState {
           border:
             1px solid
             rgba(
-              255,
-              255,
-              255,
-              0.065
+              45,
+              212,
+              191,
+              0.16
             );
-          border-radius:
-            11px;
+
           background:
             rgba(
-              0,
-              0,
-              0,
-              0.12
+              20,
+              184,
+              166,
+              0.05
             );
+
+          color: #b4cbc7;
         }
 
-        .regSectionLabel {
-          color:
-            #78938d;
-          font-size:
-            8px;
-          font-weight:
-            800;
-          letter-spacing:
-            0.14em;
-        }
-
-        .regSelectedDevelopment
-          h3 {
-          margin:
-            8px 0 10px;
-          font-size:
-            16px;
-          line-height:
-            1.45;
-        }
-
-        .regSelectedDevelopment
-          a {
-          color:
-            #a6c8c0;
-          text-decoration:
-            none;
-          font-size:
-            10px;
-        }
-
-        .regAnalysisLoading {
-          min-height:
-            180px;
-          display:
-            flex;
-          align-items:
-            center;
-          justify-content:
-            center;
-          gap:
-            14px;
-        }
-
-        .regAnalysisLoading
-          strong,
-        .regAnalysisLoading
-          span {
-          display:
-            block;
-        }
-
-        .regAnalysisLoading
-          span {
-          margin-top:
-            5px;
-          color:
-            #819a94;
-          font-size:
-            11px;
-        }
-
-        /*
-         * MARKDOWN
-         */
-
-        .regMarkdown {
-          margin-top:
-            20px;
-          color:
-            #c1cfcc;
-          font-size:
-            13px;
-          line-height:
-            1.75;
-        }
-
-        .regMarkdown h1,
-        .regMarkdown h2,
-        .regMarkdown h3 {
-          color:
-            #edf5f3;
-          line-height:
-            1.3;
-        }
-
-        .regMarkdown h3 {
-          margin-top:
-            26px;
-          font-size:
-            17px;
-        }
-
-        .regMarkdown li {
-          margin:
-            6px 0;
-        }
-
-        .regCategories {
-          display:
-            flex;
-          flex-wrap:
-            wrap;
-          gap:
-            6px;
-          margin-top:
-            18px;
-        }
-
-        .regCategories span {
+        .analysisError {
           border:
             1px solid
             rgba(
-              255,
-              255,
-              255,
-              0.07
+              248,
+              113,
+              113,
+              0.24
             );
-          border-radius:
-            999px;
-          padding:
-            5px 8px;
-          color:
-            #90a9a4;
-          font-size:
-            9px;
-        }
 
-        /*
-         * METHODOLOGY
-         */
-
-        .regMethodology {
-          margin-top:
-            27px;
-          padding:
-            21px;
-          border:
-            1px solid
-            rgba(
-              132,
-              200,
-              186,
-              0.17
-            );
-          border-radius:
-            12px;
           background:
             rgba(
-              64,
-              118,
-              108,
-              0.055
+              248,
+              113,
+              113,
+              0.05
             );
+
+          color: #fecaca;
         }
 
-        .regMethodologyHeader
-          h3 {
-          margin:
-            6px 0 0;
-          font-size:
-            17px;
+        .markdown {
+          color: #c9d9d5;
+
+          font-size: 13.5px;
+
+          line-height: 1.75;
         }
 
-        .regMethodologyHeader
-          > span {
-          color:
-            #88a29c;
-          font-size:
-            9px;
+        .markdown :global(h1),
+        .markdown :global(h2),
+        .markdown :global(h3) {
+          color: #f0f7f5;
+
+          line-height: 1.3;
         }
 
-        .regGuidanceList {
-          margin-top:
-            15px;
-          display:
-            grid;
-          gap:
-            7px;
+        .markdown :global(h2) {
+          margin-top: 28px;
+
+          font-size: 19px;
         }
 
-        .regGuidanceList
-          > div {
-          padding:
-            12px;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.06
-            );
-          border-radius:
-            8px;
-          background:
-            rgba(
-              0,
-              0,
-              0,
-              0.11
-            );
+        .markdown :global(h3) {
+          margin-top: 22px;
+
+          font-size: 15px;
         }
 
-        .regGuidanceTop {
-          display:
-            flex;
-          justify-content:
-            space-between;
-          gap:
-            10px;
+        .markdown :global(strong) {
+          color: #edf7f5;
         }
 
-        .regGuidanceTop
-          span {
-          color:
-            #84a19b;
-          font-family:
-            ui-monospace,
-            monospace;
-          font-size:
-            9px;
+        .markdown :global(a) {
+          color: #5adac6;
         }
 
-        .regGuidanceTop
-          small {
-          color:
-            #d4bd89;
-          font-size:
-            8px;
-        }
+        .sourceBlock {
+          margin-top: 24px;
 
-        .regGuidanceList
-          strong {
-          display:
-            block;
-          margin-top:
-            7px;
-          color:
-            #dce8e5;
-          font-size:
-            11px;
-        }
+          padding-top: 18px;
 
-        .regGuidanceList
-          p {
-          margin:
-            4px 0 0;
-          color:
-            #788f8a;
-          font-size:
-            9px;
-        }
-
-        /*
-         * FOOTER
-         */
-
-        .regFooter {
           border-top:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.06
+              0.08
             );
+        }
+
+        .sourceLinks {
+          display: flex;
+
+          flex-wrap: wrap;
+
+          gap: 8px;
+
+          margin-top: 10px;
+        }
+
+        .sourceLinks a {
           padding:
-            25px 5vw;
-          display:
-            flex;
+            7px 9px;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.18
+            );
+
+          border-radius: 7px;
+
+          color: #9fc3bd;
+
+          font-size: 10px;
+        }
+
+        .modalFooter {
+          padding:
+            15px 24px;
+
+          display: flex;
+
           justify-content:
-            center;
-          align-items:
-            center;
-          gap:
-            10px;
-          color:
-            #637b76;
-          font-size:
-            9px;
-          letter-spacing:
-            0.12em;
+            space-between;
+
+          align-items: center;
+
+          gap: 20px;
+
+          border-top:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.09
+            );
         }
 
-        .regFooter strong {
-          color:
-            #819b95;
+        .modalFooter a {
+          color: #67dfcd;
+
+          font-size: 10px;
+
+          font-weight: 700;
         }
 
-        /*
-         * RESPONSIVE
-         */
+        .modalFooter button {
+          min-height: 35px;
+
+          padding:
+            0 12px;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius: 7px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.03
+            );
+
+          color: #c2d2ce;
+
+          cursor: pointer;
+
+          font-size: 10px;
+        }
 
         @media (
-          max-width:
-            800px
+          max-width: 950px
         ) {
-          .regHeroTop,
-          .regToolbar {
-            align-items:
-              flex-start;
-            flex-direction:
-              column;
-          }
-
-          .regStats {
+          .statsGrid,
+          .disciplineGrid {
             grid-template-columns:
               repeat(
                 2,
                 1fr
               );
           }
+        }
 
-          .regFilters {
-            width:
-              100%;
+        @media (
+          max-width: 760px
+        ) {
+          .hero {
+            align-items:
+              flex-start;
+
             flex-direction:
               column;
+
+            padding-top:
+              66px;
           }
 
-          .regFilters input,
-          .regFilters select {
-            width:
-              100%;
+          .newsGrid {
+            grid-template-columns:
+              1fr;
           }
 
-          .regGrid {
+          .filters {
             grid-template-columns:
               1fr;
           }
         }
 
         @media (
-          max-width:
-            500px
+          max-width: 560px
         ) {
-          .regMain {
-            width:
-              92vw;
+          .hero,
+          .statsGrid,
+          .feedSection,
+          .disciplineSection {
+            padding-left:
+              18px;
+
+            padding-right:
+              18px;
           }
 
-          .regStats {
+          .statsGrid,
+          .disciplineGrid {
             grid-template-columns:
               1fr;
           }
 
-          .regModalBackdrop {
-            padding:
-              12px;
+          .hero h1 {
+            font-size:
+              43px;
           }
 
-          .regModal {
-            padding:
-              20px;
+          .hero p {
+            font-size:
+              16px;
           }
 
-          .regCardActions {
-            align-items:
-              flex-start;
-            flex-direction:
-              column;
+          .modalBackdrop {
+            padding: 10px;
+          }
+
+          .modalHeader,
+          .modalBody,
+          .modalFooter {
+            padding-left:
+              17px;
+
+            padding-right:
+              17px;
           }
         }
       `}</style>
@@ -2290,26 +1896,649 @@ Do not invent regulatory obligations that are not established by the information
   );
 }
 
-function Stat({
+function SiteHeader() {
+  return (
+    <>
+      <div className="siteHeader">
+        <div className="siteHeaderInner">
+          <Link
+            href="/"
+            className="brand"
+          >
+            <div className="brandBadge">
+              BRX
+            </div>
+
+            <div>
+              <div className="brandName">
+                BANKREGX
+              </div>
+
+              <div className="brandSub">
+                AI Control Intelligence for Banking
+              </div>
+            </div>
+          </Link>
+
+          <nav className="nav">
+            <Link
+              href="/"
+              className="navLink"
+            >
+              Home
+            </Link>
+
+            <Link
+              href="/regulatory-news"
+              className="navLink active"
+            >
+              Regulatory Intelligence
+            </Link>
+
+            <Link
+              href="/docs"
+              className="navLink"
+            >
+              Docs
+            </Link>
+
+            <Link
+              href="/security-governance"
+              className="navLink"
+            >
+              Security &amp; Governance
+            </Link>
+          </nav>
+
+          <Link
+            href="/admin"
+            className="adminLink"
+          >
+            <span>
+              Governance Admin
+            </span>
+
+            <span className="privateTag">
+              PRIVATE
+            </span>
+          </Link>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .siteHeader {
+          position: sticky;
+
+          top: 0;
+
+          z-index: 50;
+
+          border-bottom:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          background:
+            rgba(
+              10,
+              26,
+              28,
+              0.92
+            );
+
+          backdrop-filter:
+            blur(16px);
+        }
+
+        .siteHeaderInner {
+          max-width: 1240px;
+
+          min-height: 76px;
+
+          margin: 0 auto;
+
+          padding:
+            0 28px;
+
+          display: flex;
+
+          align-items:
+            center;
+
+          gap: 28px;
+        }
+
+        .brand {
+          display: flex;
+
+          align-items:
+            center;
+
+          gap: 11px;
+
+          flex-shrink: 0;
+        }
+
+        .brandBadge {
+          width: 38px;
+
+          height: 38px;
+
+          display: grid;
+
+          place-items:
+            center;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.62
+            );
+
+          border-radius: 9px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.13
+            );
+
+          color: #6ee7d3;
+
+          font-size: 12px;
+
+          font-weight: 800;
+
+          letter-spacing:
+            0.06em;
+        }
+
+        .brandName {
+          color: #f7fcfb;
+
+          font-size: 14px;
+
+          font-weight: 800;
+
+          letter-spacing:
+            0.08em;
+        }
+
+        .brandSub {
+          margin-top: 2px;
+
+          color: #91aaa6;
+
+          font-size: 10px;
+
+          white-space: nowrap;
+        }
+
+        .nav {
+          flex: 1;
+
+          display: flex;
+
+          justify-content:
+            center;
+
+          align-items:
+            center;
+
+          gap: 25px;
+        }
+
+        .navLink {
+          color: #bdd0cc;
+
+          font-size: 13px;
+
+          white-space: nowrap;
+        }
+
+        .navLink:hover {
+          color: #f1f8f7;
+        }
+
+        .navLink.active {
+          color: #64dfcb;
+        }
+
+        .adminLink {
+          flex-shrink: 0;
+
+          display:
+            inline-flex;
+
+          align-items:
+            center;
+
+          gap: 8px;
+
+          min-height: 34px;
+
+          padding:
+            0 10px;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.33
+            );
+
+          border-radius: 7px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.08
+            );
+
+          color: #c4d7d3;
+
+          font-size: 10px;
+
+          font-weight: 700;
+        }
+
+        .privateTag {
+          padding:
+            4px 6px;
+
+          border-radius: 5px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.16
+            );
+
+          color: #65e2cf;
+
+          font-size: 8px;
+
+          font-weight: 800;
+
+          letter-spacing:
+            0.11em;
+        }
+
+        @media (
+          max-width: 1100px
+        ) {
+          .siteHeaderInner {
+            gap: 18px;
+          }
+
+          .nav {
+            gap: 16px;
+          }
+
+          .navLink {
+            font-size: 12px;
+          }
+        }
+
+        @media (
+          max-width: 850px
+        ) {
+          .siteHeaderInner {
+            min-height: auto;
+
+            padding-top:
+              15px;
+
+            padding-bottom:
+              13px;
+
+            flex-wrap: wrap;
+          }
+
+          .brand {
+            flex: 1;
+          }
+
+          .adminLink {
+            margin-left: auto;
+          }
+
+          .nav {
+            order: 3;
+
+            flex:
+              0 0 100%;
+
+            width: 100%;
+
+            justify-content:
+              flex-start;
+
+            overflow-x: auto;
+
+            padding-bottom:
+              2px;
+          }
+        }
+
+        @media (
+          max-width: 560px
+        ) {
+          .siteHeaderInner {
+            padding-left:
+              18px;
+
+            padding-right:
+              18px;
+          }
+
+          .brandSub {
+            display: none;
+          }
+
+          .adminLink
+            > span:first-child {
+            display: none;
+          }
+        }
+      `}</style>
+    </>
+  );
+}
+
+function StatCard({
   label,
   value,
-  small = false,
 }) {
   return (
-    <div
-      className={`regStat ${
-        small
-          ? "regStatSmall"
-          : ""
-      }`}
-    >
-      <span>
-        {label}
-      </span>
+    <>
+      <div className="statCard">
+        <div className="value">
+          {value}
+        </div>
 
-      <strong>
-        {value}
-      </strong>
-    </div>
+        <div className="label">
+          {label}
+        </div>
+      </div>
+
+      <style jsx>{`
+        .statCard {
+          min-height: 105px;
+
+          padding: 20px;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius: 12px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.03
+            );
+        }
+
+        .value {
+          color: #edf7f5;
+
+          font-size: 20px;
+
+          font-weight: 700;
+
+          line-height: 1.2;
+        }
+
+        .label {
+          margin-top: 9px;
+
+          color: #91aaa6;
+
+          font-size: 10px;
+        }
+      `}</style>
+    </>
+  );
+}
+
+function DisciplineCard({
+  number,
+  title,
+  text,
+}) {
+  return (
+    <>
+      <div className="disciplineCard">
+        <div className="number">
+          {number}
+        </div>
+
+        <h3>
+          {title}
+        </h3>
+
+        <p>
+          {text}
+        </p>
+      </div>
+
+      <style jsx>{`
+        .disciplineCard {
+          min-height: 180px;
+
+          padding: 20px;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius: 12px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.03
+            );
+        }
+
+        .number {
+          margin-bottom: 28px;
+
+          color: #55dbc6;
+
+          font-size: 9px;
+
+          font-weight: 800;
+        }
+
+        h3 {
+          margin:
+            0 0 8px;
+
+          color: #edf6f4;
+
+          font-size: 14px;
+        }
+
+        p {
+          margin: 0;
+
+          color: #a2b7b3;
+
+          font-size: 11.5px;
+
+          line-height: 1.65;
+        }
+      `}</style>
+    </>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <>
+      <div className="siteFooter">
+        <div>
+          <strong>
+            BankRegX
+          </strong>
+
+          <span>
+            AI Control Intelligence for Banking
+          </span>
+        </div>
+
+        <div className="footerLinks">
+          <Link href="/">
+            Home
+          </Link>
+
+          <Link href="/regulatory-news">
+            Regulatory Intelligence
+          </Link>
+
+          <Link href="/docs">
+            Docs
+          </Link>
+
+          <Link href="/security-governance">
+            Security &amp; Governance
+          </Link>
+
+          <Link href="/admin">
+            Governance Admin · Private
+          </Link>
+        </div>
+
+        <div className="footerNote">
+          BankRegX regulatory analysis
+          supports professional judgement
+          and should be validated against
+          the authoritative source.
+        </div>
+      </div>
+
+      <style jsx>{`
+        .siteFooter {
+          max-width: 1120px;
+
+          margin: 0 auto;
+
+          padding:
+            38px 28px 50px;
+
+          border-top:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.08
+            );
+
+          display: grid;
+
+          grid-template-columns:
+            1fr 1fr 1.4fr;
+
+          gap: 35px;
+
+          color: #8fa7a3;
+
+          font-size: 11px;
+
+          line-height: 1.65;
+        }
+
+        strong {
+          display: block;
+
+          margin-bottom: 3px;
+
+          color: #c3d4d1;
+
+          font-size: 12px;
+        }
+
+        span {
+          display: block;
+        }
+
+        .footerLinks {
+          display: flex;
+
+          flex-direction:
+            column;
+
+          gap: 5px;
+        }
+
+        .footerLinks
+          :global(a) {
+          color: #a6bbb7;
+        }
+
+        .footerLinks
+          :global(a:hover) {
+          color: #65e0cd;
+        }
+
+        .footerNote {
+          color: #8ea5a1;
+        }
+
+        @media (
+          max-width: 850px
+        ) {
+          .siteFooter {
+            grid-template-columns:
+              1fr;
+          }
+        }
+
+        @media (
+          max-width: 560px
+        ) {
+          .siteFooter {
+            padding-left:
+              18px;
+
+            padding-right:
+              18px;
+          }
+        }
+      `}</style>
+    </>
   );
 }

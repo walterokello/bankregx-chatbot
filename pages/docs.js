@@ -2,7 +2,7 @@ import {
   useState,
 } from "react";
 
-import BankRegXNav from "../components/BankRegXNav";
+import Link from "next/link";
 
 export default function Docs() {
   const [
@@ -10,46 +10,32 @@ export default function Docs() {
     setOpenSections,
   ] = useState({
     overview: true,
-    ask: true,
-    feedback: false,
+    methodology: true,
+    traceability: true,
     regulatory: false,
-    governance: false,
+    using: false,
+    technical: false,
   });
 
-  function toggle(
-    section
-  ) {
+  function toggle(section) {
     setOpenSections(
       (current) => ({
         ...current,
-
         [section]:
-          !current[
-            section
-          ],
+          !current[section],
       })
     );
   }
 
   return (
     <>
-      <div className="docsPage">
-        <BankRegXNav
-          current="docs"
-        />
+      <main className="docsPage">
+        <SiteHeader />
 
-        <main className="docsMain">
-          {/*
-           * =================================================
-           * HERO
-           * =================================================
-           */}
-
+        <div className="docsMain">
           <section className="docsHero">
             <div className="docsEyebrow">
-              PRODUCT &
-              DEVELOPER
-              REFERENCE
+              PRODUCT DOCUMENTATION
             </div>
 
             <h1>
@@ -57,21 +43,15 @@ export default function Docs() {
             </h1>
 
             <p>
-              A concise reference
-              for the BankRegX
-              control intelligence
-              model, assessment
-              APIs and governed
-              expert-learning
-              architecture.
+              Understand how BankRegX
+              applies AI, approved expert
+              methodology, regulatory
+              intelligence and governed
+              human review to support
+              professional control
+              judgement.
             </p>
           </section>
-
-          {/*
-           * =================================================
-           * PRODUCT MODEL
-           * =================================================
-           */}
 
           <section className="docsModel">
             <ModelCard
@@ -83,7 +63,7 @@ export default function Docs() {
             <ModelCard
               number="02"
               title="Assess"
-              copy="Apply AI and approved expert methodology to professional judgement."
+              copy="Apply governed methodology to control and professional judgement."
             />
 
             <ModelCard
@@ -95,341 +75,343 @@ export default function Docs() {
             <ModelCard
               number="04"
               title="Learn"
-              copy="Capture expert corrections through a governed human-review process."
+              copy="Capture expert review through a controlled human-governance process."
             />
           </section>
 
           <div className="docsLayout">
-            {/*
-             * ===============================================
-             * SIDEBAR
-             * ===============================================
-             */}
-
             <aside className="docsSidebar">
               <div className="docsSideLabel">
                 CONTENTS
               </div>
 
               <a href="#overview">
-                Overview
+                How BankRegX works
               </a>
 
-              <a href="#ask">
-                Ask API
+              <a href="#methodology">
+                Assessment methodology
               </a>
 
-              <a href="#feedback">
-                Feedback API
+              <a href="#traceability">
+                Assessment traceability
               </a>
 
               <a href="#regulatory">
-                Regulatory
-                Intelligence
+                Regulatory Intelligence
               </a>
 
-              <a href="#governance">
-                Governance
-                APIs
+              <a href="#using">
+                Using BankRegX
               </a>
+
+              <a href="#technical">
+                Technical overview
+              </a>
+
+              <div className="docsTrustCard">
+                <div className="docsSideLabel">
+                  TRUST &amp; GOVERNANCE
+                </div>
+
+                <strong>
+                  Security, privacy and
+                  AI governance
+                </strong>
+
+                <p>
+                  Information about data
+                  handling, service
+                  governance, technology
+                  dependencies and
+                  assurance is available
+                  separately.
+                </p>
+
+                <Link href="/security-governance">
+                  View Security &amp;
+                  Governance →
+                </Link>
+              </div>
 
               <div className="docsPrivateNote">
                 <strong>
-                  Private
-                  governance
+                  Private governance
                 </strong>
 
-                Expert Studio and
-                Review Queue
-                administrative
-                endpoints require
-                an authenticated
-                admin session.
+                BankRegX includes a
+                controlled internal
+                workspace for methodology
+                management and expert
+                review.
+
+                <Link href="/admin">
+                  Governance Admin →
+                </Link>
               </div>
             </aside>
 
-            {/*
-             * ===============================================
-             * CONTENT
-             * ===============================================
-             */}
-
             <section className="docsContent">
-              {/*
-               * =============================================
-               * OVERVIEW
-               * =============================================
-               */}
-
               <DocSection
                 id="overview"
-                eyebrow="ARCHITECTURE"
+                eyebrow="PRODUCT MODEL"
                 title="How BankRegX works"
                 open={
                   openSections.overview
                 }
                 onToggle={() =>
-                  toggle(
-                    "overview"
-                  )
+                  toggle("overview")
                 }
               >
                 <p>
-                  BankRegX combines
-                  AI reasoning,
-                  regulatory
-                  information and
-                  approved expert
-                  methodology to
-                  support banking
-                  controls, audit
-                  and risk
-                  assessment.
+                  BankRegX combines AI
+                  analysis, regulatory
+                  information and approved
+                  expert methodology to
+                  support controls, audit,
+                  risk and compliance
+                  judgement.
                 </p>
 
                 <div className="docsFlow">
-                  <div>
-                    <span>
-                      INPUT
-                    </span>
+                  <FlowBox
+                    label="INPUT"
+                    value="Professional question"
+                  />
 
-                    <strong>
-                      User
-                      question
-                    </strong>
-                  </div>
+                  <FlowArrow />
 
-                  <b>
-                    →
-                  </b>
+                  <FlowBox
+                    label="RETRIEVAL"
+                    value="Relevant approved methodology"
+                  />
 
-                  <div>
-                    <span>
-                      RETRIEVAL
-                    </span>
+                  <FlowArrow />
 
-                    <strong>
-                      Relevant
-                      methodology
-                    </strong>
-                  </div>
+                  <FlowBox
+                    label="EVIDENCE"
+                    value="Facts, sources and context"
+                  />
 
-                  <b>
-                    →
-                  </b>
+                  <FlowArrow />
 
-                  <div>
-                    <span>
-                      REASONING
-                    </span>
+                  <FlowBox
+                    label="ASSESSMENT"
+                    value="BankRegX judgement"
+                  />
 
-                    <strong>
-                      BankRegX
-                      assessment
-                    </strong>
-                  </div>
+                  <FlowArrow />
 
-                  <b>
-                    →
-                  </b>
-
-                  <div>
-                    <span>
-                      GOVERNANCE
-                    </span>
-
-                    <strong>
-                      Expert
-                      review
-                    </strong>
-                  </div>
+                  <FlowBox
+                    label="GOVERNANCE"
+                    value="Human expert review"
+                  />
                 </div>
 
                 <div className="docsCallout">
-                  Approved
-                  methodology may
-                  inform BankRegX
-                  assessments.
-                  Draft and
-                  deprecated
-                  methodology is
-                  excluded from the
-                  active
-                  intelligence
-                  layer.
+                  Only approved methodology
+                  is intended to influence
+                  BankRegX assessments.
+                  Draft, deprecated and
+                  unreviewed guidance is
+                  excluded from the active
+                  intelligence layer.
+                </div>
+
+                <div className="docsPrinciples">
+                  <PrincipleCard
+                    title="Evidence-led"
+                    text="BankRegX seeks to distinguish information that is actually known from assumptions and professional judgement."
+                  />
+
+                  <PrincipleCard
+                    title="Risk-based"
+                    text="A control is assessed against the risk it is intended to mitigate rather than simply against a checklist."
+                  />
+
+                  <PrincipleCard
+                    title="Human-governed"
+                    text="Feedback and proposed methodology changes are reviewed before they can influence future assessments."
+                  />
                 </div>
               </DocSection>
 
-              {/*
-               * =============================================
-               * ASK API
-               * =============================================
-               */}
-
               <DocSection
-                id="ask"
-                eyebrow="ASSESSMENT API"
-                title="POST /api/ask"
+                id="methodology"
+                eyebrow="ASSESSMENT DISCIPLINE"
+                title="Assessment methodology"
                 open={
-                  openSections.ask
+                  openSections.methodology
                 }
                 onToggle={() =>
                   toggle(
-                    "ask"
+                    "methodology"
                   )
                 }
               >
                 <p>
-                  Submit a controls,
-                  audit, risk or
-                  regulatory
-                  question to
-                  BankRegX.
+                  BankRegX is designed to
+                  support defensible
+                  professional judgement.
+                  It does not treat
+                  completeness of a
+                  description as evidence
+                  that a control is
+                  effective.
                 </p>
 
-                <MethodBar
-                  method="POST"
-                  path="/api/ask"
-                  access="Application"
-                />
+                <div className="methodologyList">
+                  <MethodologyRow
+                    number="01"
+                    title="Establish the facts"
+                    text="Identify what the user or source actually states before drawing conclusions."
+                  />
+
+                  <MethodologyRow
+                    number="02"
+                    title="Identify material unknowns"
+                    text="Separate missing information from evidence that is genuinely required to reach the assessment."
+                  />
+
+                  <MethodologyRow
+                    number="03"
+                    title="Understand the underlying risk"
+                    text="Assess what could go wrong and the point at which the relevant harm may occur."
+                  />
+
+                  <MethodologyRow
+                    number="04"
+                    title="Assess risk-to-control alignment"
+                    text="Consider whether the control mechanism is capable of mitigating the stated risk with appropriate timing, scope, precision and response."
+                  />
+
+                  <MethodologyRow
+                    number="05"
+                    title="Separate design from operation"
+                    text="Do not require operating-effectiveness evidence in order to reach a control-design conclusion."
+                  />
+
+                  <MethodologyRow
+                    number="06"
+                    title="Reach a qualified judgement"
+                    text="Provide the clearest supported conclusion while being transparent about material uncertainty."
+                  />
+                </div>
+
+                <div className="docsQuote">
+                  <span>
+                    CENTRAL QUESTION
+                  </span>
+
+                  <strong>
+                    Is this control, as
+                    designed, actually
+                    capable of mitigating
+                    the stated risk?
+                  </strong>
+                </div>
+              </DocSection>
+
+              <DocSection
+                id="traceability"
+                eyebrow="GOVERNED INTELLIGENCE"
+                title="Assessment traceability"
+                open={
+                  openSections.traceability
+                }
+                onToggle={() =>
+                  toggle(
+                    "traceability"
+                  )
+                }
+              >
+                <p>
+                  BankRegX assessment
+                  records can retain
+                  information about the
+                  methodology and external
+                  sources associated with
+                  an assessment. This
+                  supports later review of
+                  the basis on which the
+                  AI-assisted judgement was
+                  produced.
+                </p>
+
+                <div className="traceGrid">
+                  <TraceCard
+                    label="ASSESSMENT"
+                    title="Response record"
+                    text="A successful assessment can be associated with a unique response identifier."
+                  />
+
+                  <TraceCard
+                    label="METHODOLOGY"
+                    title="Guidance identity"
+                    text="Relevant approved expert principles can be recorded against the assessment."
+                  />
+
+                  <TraceCard
+                    label="VERSION"
+                    title="Methodology version"
+                    text="The version of methodology used can be retained with the original assessment."
+                  />
+
+                  <TraceCard
+                    label="SOURCES"
+                    title="External evidence"
+                    text="Where live research is used, the browsed source information can be retained for traceability."
+                  />
+                </div>
 
                 <h3>
-                  Request
+                  Illustrative assessment
+                  record
                 </h3>
 
                 <CodeBlock>
 {`{
-  "userId": "demo-user",
-  "query": "Assess this control: The Finance Manager reviews a monthly exception report and investigates exceptions."
-}`}
-                </CodeBlock>
-
-                <h3>
-                  Response
-                </h3>
-
-                <CodeBlock>
-{`{
-  "answer": "### Preliminary conclusion\\n...",
   "responseId": "ASSESSMENT_DOCUMENT_ID",
-  "expertGuidance": [
+
+  "methodologyTraceSchemaVersion": 1,
+
+  "methodologyTrace": [
     {
       "guidanceId": "BRX-G-XXXXXXXX",
-      "title": "Expert principle",
+      "documentId": "GUIDANCE_DOCUMENT_ID",
+      "version": 1,
+      "title": "Expert methodology principle",
       "category": "control_design",
+      "subcategory": "risk_control_alignment",
       "priority": "critical"
     }
   ],
-  "detectedCategories": [
-    "control_design"
+
+  "browsedPages": [
+    {
+      "title": "Authoritative source",
+      "url": "https://..."
+    }
   ]
 }`}
                 </CodeBlock>
 
                 <div className="docsCallout">
-                  The
-                  <code>
-                    responseId
-                  </code>
-                  {" "}
-                  links subsequent
-                  expert feedback
-                  to the original
-                  BankRegX
-                  assessment.
+                  Historical records created
+                  before methodology-version
+                  tracing was introduced may
+                  not contain an exact
+                  version. BankRegX should
+                  not infer a historical
+                  methodology version where
+                  it was not recorded.
                 </div>
               </DocSection>
-
-              {/*
-               * =============================================
-               * FEEDBACK
-               * =============================================
-               */}
-
-              <DocSection
-                id="feedback"
-                eyebrow="EXPERT FEEDBACK"
-                title="POST /api/feedback"
-                open={
-                  openSections.feedback
-                }
-                onToggle={() =>
-                  toggle(
-                    "feedback"
-                  )
-                }
-              >
-                <p>
-                  Record an expert
-                  approval,
-                  correction or
-                  rejection of a
-                  BankRegX
-                  assessment.
-                </p>
-
-                <MethodBar
-                  method="POST"
-                  path="/api/feedback"
-                  access="Application"
-                />
-
-                <h3>
-                  Approve an
-                  assessment
-                </h3>
-
-                <CodeBlock>
-{`{
-  "responseId": "ASSESSMENT_DOCUMENT_ID",
-  "userId": "expert-user",
-  "question": "Is this control well designed?",
-  "aiResponse": "BankRegX assessment...",
-  "feedbackType": "approve",
-  "category": "control_design"
-}`}
-                </CodeBlock>
-
-                <h3>
-                  Correct an
-                  assessment
-                </h3>
-
-                <CodeBlock>
-{`{
-  "responseId": "ASSESSMENT_DOCUMENT_ID",
-  "userId": "expert-user",
-  "question": "Is this control well designed?",
-  "aiResponse": "BankRegX assessment...",
-  "feedbackType": "correct",
-  "correctedAnswer": "The professionally appropriate assessment is...",
-  "rationale": "The original assessment conflated design effectiveness with operating effectiveness.",
-  "category": "control_design"
-}`}
-                </CodeBlock>
-
-                <div className="docsCallout">
-                  A correction does
-                  not automatically
-                  change global
-                  BankRegX
-                  methodology. It
-                  enters the Expert
-                  Review Queue for
-                  human governance.
-                </div>
-              </DocSection>
-
-              {/*
-               * =============================================
-               * REGULATORY
-               * =============================================
-               */}
 
               <DocSection
                 id="regulatory"
                 eyebrow="MONITOR"
-                title="GET /api/regulatory-news"
+                title="Regulatory Intelligence"
                 open={
                   openSections.regulatory
                 }
@@ -440,192 +422,240 @@ export default function Docs() {
                 }
               >
                 <p>
-                  Retrieve the
-                  regulatory feeds
-                  used by the
-                  BankRegX
-                  Regulatory
-                  Intelligence
-                  workspace.
+                  The Regulatory
+                  Intelligence workspace
+                  brings together regulatory
+                  developments and allows an
+                  individual publication to
+                  be assessed for potential
+                  control impact.
                 </p>
 
-                <MethodBar
-                  method="GET"
-                  path="/api/regulatory-news"
-                  access="Application"
-                />
+                <div className="regulatoryFlow">
+                  <FlowBox
+                    label="SOURCE"
+                    value="Regulatory publication"
+                  />
+
+                  <FlowArrow />
+
+                  <FlowBox
+                    label="CONTENT"
+                    value="Feed or source-page information"
+                  />
+
+                  <FlowArrow />
+
+                  <FlowBox
+                    label="ANALYSIS"
+                    value="Potential business and risk impact"
+                  />
+
+                  <FlowArrow />
+
+                  <FlowBox
+                    label="CONTROL"
+                    value="Control implications"
+                  />
+                </div>
+
+                <div className="docsPrinciples">
+                  <PrincipleCard
+                    title="Regulatory fact"
+                    text="Start with what the regulator or authoritative source actually states."
+                  />
+
+                  <PrincipleCard
+                    title="BankRegX judgement"
+                    text="Professional interpretation is distinguished from the regulatory source itself."
+                  />
+
+                  <PrincipleCard
+                    title="Proportionate action"
+                    text="A new publication does not automatically mean that a new control is required."
+                  />
+                </div>
+
+                <h3>
+                  Regulatory feed record
+                </h3>
 
                 <CodeBlock>
-{`[
-  {
-    "name": "Regulatory source",
-    "items": [
-      {
-        "title": "Regulatory development",
-        "link": "https://...",
-        "pubDate": "..."
-      }
-    ]
-  }
-]`}
+{`{
+  "source": "ECB",
+  "name": "ECB",
+  "feedUrl": "https://...",
+
+  "items": [
+    {
+      "title": "Regulatory development",
+      "link": "https://...",
+      "pubDate": "...",
+      "summary": "Development-specific source text...",
+      "summarySource": "source_page",
+      "enrichedFromSourcePage": true
+    }
+  ]
+}`}
                 </CodeBlock>
 
-                <p>
-                  The Regulatory
-                  Intelligence
-                  workspace can
-                  submit an
-                  individual
-                  development to
-                  BankRegX for
-                  control-impact
-                  analysis.
-                </p>
+                <div className="docsCallout">
+                  Where a feed does not
+                  provide a useful
+                  development-specific
+                  summary, BankRegX may
+                  attempt to retrieve
+                  substantive information
+                  from the regulator&apos;s
+                  source page.
+                </div>
               </DocSection>
 
-              {/*
-               * =============================================
-               * GOVERNANCE
-               * =============================================
-               */}
+              <DocSection
+                id="using"
+                eyebrow="WORKFLOWS"
+                title="Using BankRegX"
+                open={
+                  openSections.using
+                }
+                onToggle={() =>
+                  toggle("using")
+                }
+              >
+                <p>
+                  The BankRegX homepage
+                  presents four practical
+                  assessment modes. Each
+                  mode applies the same
+                  underlying evidence and
+                  judgement discipline in a
+                  different professional
+                  context.
+                </p>
+
+                <div className="useGrid">
+                  <UseCard
+                    number="01"
+                    title="Ask anything"
+                    example="What control weaknesses should I consider in this process?"
+                    text="General questions across controls, audit, risk and regulation."
+                  />
+
+                  <UseCard
+                    number="02"
+                    title="Assess a control"
+                    example="Assess whether this monthly exception review is well designed."
+                    text="Evaluate whether a stated control is capable of mitigating the underlying risk."
+                  />
+
+                  <UseCard
+                    number="03"
+                    title="Analyse regulatory impact"
+                    example="What could this FCA publication mean for our controls?"
+                    text="Translate a regulatory development into proportionate risk and control questions."
+                  />
+
+                  <UseCard
+                    number="04"
+                    title="Review a finding"
+                    example="Does the evidence support this audit finding and rating?"
+                    text="Challenge the logic, evidence and significance of an audit or controls finding."
+                  />
+                </div>
+              </DocSection>
 
               <DocSection
-                id="governance"
-                eyebrow="PRIVATE GOVERNANCE"
-                title="Expert Intelligence APIs"
+                id="technical"
+                eyebrow="TECHNICAL OVERVIEW"
+                title="Application interfaces"
                 open={
-                  openSections.governance
+                  openSections.technical
                 }
                 onToggle={() =>
                   toggle(
-                    "governance"
+                    "technical"
                   )
                 }
               >
                 <p>
-                  These endpoints
-                  support the
-                  private Expert
-                  Studio and Expert
-                  Review Queue.
-                  They are not
-                  ordinary
-                  end-user
-                  interfaces.
+                  BankRegX is currently
+                  delivered primarily as a
+                  web application. The
+                  application uses
+                  server-side interfaces to
+                  perform assessments,
+                  retrieve regulatory
+                  intelligence and capture
+                  feedback.
                 </p>
 
                 <EndpointRow
-                  method="GET / POST / PATCH"
-                  path="/api/admin/guidance"
-                  description="Create, edit, approve, draft and deprecate governed methodology."
+                  method="POST"
+                  path="/api/ask"
+                  description="Submit a BankRegX assessment request and return the assessment, methodology trace and source information where available."
                 />
 
                 <EndpointRow
                   method="GET"
-                  path="/api/admin/guidance-history"
-                  description="Retrieve current and archived versions of an expert methodology principle."
-                />
-
-                <EndpointRow
-                  method="GET / PATCH"
-                  path="/api/admin/reviews"
-                  description="Review expert corrections and link reusable lessons to draft methodology."
-                />
-
-                <EndpointRow
-                  method="GET"
-                  path="/api/admin/session"
-                  description="Read the current secure Expert Studio session state."
+                  path="/api/regulatory-news"
+                  description="Retrieve normalized regulatory developments used by the Regulatory Intelligence workspace."
                 />
 
                 <EndpointRow
                   method="POST"
-                  path="/api/admin/login"
-                  description="Establish a secure administrative session."
+                  path="/api/feedback"
+                  description="Capture assessment feedback for quality review and governed expert learning."
                 />
-
-                <EndpointRow
-                  method="POST"
-                  path="/api/admin/logout"
-                  description="End the current administrative session."
-                />
-
-                <div className="docsGovernanceFlow">
-                  <span>
-                    ASSESSMENT
-                  </span>
-
-                  <b>
-                    →
-                  </b>
-
-                  <span>
-                    CORRECTION
-                  </span>
-
-                  <b>
-                    →
-                  </b>
-
-                  <span>
-                    REVIEW
-                  </span>
-
-                  <b>
-                    →
-                  </b>
-
-                  <span>
-                    DRAFT
-                  </span>
-
-                  <b>
-                    →
-                  </b>
-
-                  <span>
-                    APPROVAL
-                  </span>
-
-                  <b>
-                    →
-                  </b>
-
-                  <span>
-                    ACTIVE
-                    METHODOLOGY
-                  </span>
-                </div>
 
                 <div className="docsWarning">
-                  Administrative
-                  credentials and
-                  private
-                  environment
-                  variables should
-                  never be exposed
-                  in client-side
-                  code,
-                  documentation or
-                  demonstrations.
+                  Private administrative
+                  authentication, session
+                  management and governance
+                  interfaces are
+                  intentionally not
+                  documented publicly.
+                  Administrative operations
+                  remain within the
+                  authenticated BankRegX
+                  governance environment.
+                </div>
+
+                <div className="technicalLink">
+                  <div>
+                    <div className="docsSectionEyebrow">
+                      SECURITY &amp; GOVERNANCE
+                    </div>
+
+                    <strong>
+                      Looking for security,
+                      privacy or assurance
+                      information?
+                    </strong>
+
+                    <p>
+                      Review the separate
+                      Security &amp;
+                      Governance page for
+                      information about
+                      data handling,
+                      infrastructure,
+                      AI governance and
+                      assurance.
+                    </p>
+                  </div>
+
+                  <Link href="/security-governance">
+                    View Security &amp;
+                    Governance →
+                  </Link>
                 </div>
               </DocSection>
             </section>
           </div>
-        </main>
+        </div>
 
-        <footer className="docsFooter">
-          <strong>
-            BANKREGX
-          </strong>
-
-          <span>
-            PRODUCT &
-            DEVELOPER
-            REFERENCE
-          </span>
-        </footer>
-      </div>
+        <SiteFooter />
+      </main>
 
       <style jsx global>{`
         * {
@@ -633,14 +663,26 @@ export default function Docs() {
             border-box;
         }
 
-        html,
+        html {
+          scroll-behavior:
+            smooth;
+
+          background:
+            #0a1a1c;
+        }
+
         body {
           margin: 0;
-          min-height: 100%;
+
+          min-height:
+            100%;
+
           background:
-            #071014;
+            #0a1a1c;
+
           color:
-            #edf5f3;
+            #f4fbfa;
+
           font-family:
             Inter,
             ui-sans-serif,
@@ -651,24 +693,18 @@ export default function Docs() {
             sans-serif;
         }
 
-        body {
-          background:
-            radial-gradient(
-              circle at top left,
-              rgba(
-                63,
-                139,
-                125,
-                0.12
-              ),
-              transparent 34%
-            ),
-            #071014;
+        a {
+          color:
+            inherit;
+
+          text-decoration:
+            none !important;
         }
 
         button {
           font:
             inherit;
+
           cursor:
             pointer;
         }
@@ -686,125 +722,162 @@ export default function Docs() {
         .docsPage {
           min-height:
             100vh;
+
+          background:
+            radial-gradient(
+              circle at 18% 0%,
+              rgba(
+                20,
+                184,
+                166,
+                0.14
+              ),
+              transparent 34%
+            ),
+            linear-gradient(
+              180deg,
+              #0a1a1c 0%,
+              #0d2022 52%,
+              #091719 100%
+            );
         }
 
         .docsMain {
           width:
             min(
-              1180px,
-              90vw
+              1120px,
+              calc(
+                100% -
+                56px
+              )
             );
+
           margin:
             0 auto;
         }
 
-        /*
-         * HERO
-         */
-
         .docsHero {
           padding:
-            72px 0 32px;
+            92px 0 42px;
         }
 
         .docsEyebrow,
         .docsSectionEyebrow {
           color:
-            #87c3b7;
+            #55dbc6;
+
           font-size:
-            9px;
+            10px;
+
           font-weight:
             800;
+
           letter-spacing:
-            0.17em;
+            0.18em;
         }
 
         .docsHero h1 {
           margin:
-            12px 0 14px;
+            15px 0 16px;
+
+          color:
+            #f8fcfb;
+
           font-size:
             clamp(
               44px,
-              5vw,
-              66px
+              6vw,
+              68px
             );
+
           line-height:
             1;
+
           letter-spacing:
             -0.045em;
-          color:
-            #f1f6f5;
         }
 
         .docsHero p {
           max-width:
-            730px;
-          color:
-            #9eb2ae;
-          line-height:
-            1.7;
-          font-size:
-            14px;
-        }
+            760px;
 
-        /*
-         * PRODUCT MODEL
-         */
+          margin:
+            0;
+
+          color:
+            #d1dfdc;
+
+          font-size:
+            18px;
+
+          line-height:
+            1.65;
+        }
 
         .docsModel {
           display:
             grid;
+
           grid-template-columns:
             repeat(
               4,
               1fr
             );
+
           gap:
-            1px;
-          margin:
-            18px 0 36px;
-          overflow:
-            hidden;
+            11px;
+
+          margin-bottom:
+            68px;
+        }
+
+        .docsModelCard {
+          min-height:
+            170px;
+
+          padding:
+            20px;
+
           border:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.07
+              0.1
             );
+
           border-radius:
-            13px;
+            12px;
+
           background:
             rgba(
               255,
               255,
               255,
-              0.06
+              0.03
             );
-        }
-
-        .docsModelCard {
-          padding:
-            20px;
-          background:
-            #091519;
         }
 
         .docsModelCard
           > span {
           color:
-            #708b84;
-          font-family:
-            ui-monospace,
-            monospace;
+            #55dbc6;
+
           font-size:
-            8px;
+            9px;
+
+          font-weight:
+            800;
         }
 
         .docsModelCard h3 {
           margin:
-            10px 0 6px;
+            28px 0 8px;
+
+          color:
+            #edf6f4;
+
           font-size:
             15px;
         }
@@ -812,47 +885,104 @@ export default function Docs() {
         .docsModelCard p {
           margin:
             0;
-          color:
-            #849c97;
-          line-height:
-            1.55;
-          font-size:
-            10px;
-        }
 
-        /*
-         * LAYOUT
-         */
+          color:
+            #a2b7b3;
+
+          font-size:
+            11.5px;
+
+          line-height:
+            1.65;
+        }
 
         .docsLayout {
           display:
             grid;
+
           grid-template-columns:
-            210px
+            220px
             minmax(
               0,
               1fr
             );
+
           gap:
             25px;
-          margin-bottom:
-            80px;
-        }
 
-        /*
-         * SIDEBAR
-         */
+          padding:
+            74px 0 80px;
+
+          border-top:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.08
+            );
+        }
 
         .docsSidebar {
           position:
             sticky;
+
           top:
-            105px;
+            100px;
+
           align-self:
             start;
+
           padding:
-            17px;
+            18px;
+
           border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius:
+            12px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.028
+            );
+        }
+
+        .docsSideLabel {
+          margin-bottom:
+            10px;
+
+          color:
+            #6bdcca;
+
+          font-size:
+            8px;
+
+          font-weight:
+            800;
+
+          letter-spacing:
+            0.14em;
+        }
+
+        .docsSidebar
+          > a {
+          display:
+            block;
+
+          padding:
+            9px 0;
+
+          border-bottom:
             1px solid
             rgba(
               255,
@@ -860,152 +990,173 @@ export default function Docs() {
               255,
               0.07
             );
-          border-radius:
-            12px;
-          background:
-            rgba(
-              10,
-              23,
-              28,
-              0.65
-            );
-        }
 
-        .docsSideLabel {
-          margin-bottom:
-            11px;
           color:
-            #718c85;
-          font-size:
-            8px;
-          font-weight:
-            800;
-          letter-spacing:
-            0.13em;
-        }
+            #b6c9c5;
 
-        .docsSidebar
-          > a {
-          display:
-            block;
-          padding:
-            8px 0;
-          color:
-            #9db0ac;
-          border-bottom:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.045
-            );
-          text-decoration:
-            none;
           font-size:
-            10px;
+            10.5px;
         }
 
         .docsSidebar
           > a:hover {
           color:
-            #e4eeeb;
+            #62dfcc;
         }
 
+        .docsTrustCard,
         .docsPrivateNote {
           margin-top:
-            16px;
+            17px;
+
           padding:
-            12px;
-          border-left:
-            2px solid
+            13px;
+
+          border:
+            1px solid
             rgba(
-              134,
-              200,
-              187,
-              0.3
+              45,
+              212,
+              191,
+              0.16
             );
+
+          border-radius:
+            9px;
+
           background:
             rgba(
-              90,
-              154,
-              141,
+              20,
+              184,
+              166,
               0.05
             );
+        }
+
+        .docsTrustCard strong,
+        .docsPrivateNote strong {
+          display:
+            block;
+
           color:
-            #78928c;
+            #d9e8e5;
+
+          font-size:
+            10.5px;
+
+          line-height:
+            1.5;
+        }
+
+        .docsTrustCard p {
+          margin:
+            7px 0 9px;
+
+          color:
+            #96aca8;
+
           font-size:
             9px;
+
           line-height:
             1.55;
         }
 
-        .docsPrivateNote
-          strong {
+        .docsTrustCard a,
+        .docsPrivateNote a {
           display:
             block;
-          margin-bottom:
-            5px;
+
+          margin-top:
+            8px;
+
           color:
-            #9ebdb6;
+            #5edcc8;
+
+          font-size:
+            9px;
+
+          font-weight:
+            700;
         }
 
-        /*
-         * SECTIONS
-         */
+        .docsPrivateNote {
+          color:
+            #96aca8;
+
+          font-size:
+            9px;
+
+          line-height:
+            1.55;
+        }
 
         .docsContent {
           display:
             grid;
+
           gap:
             12px;
         }
 
         .docsSection {
+          overflow:
+            hidden;
+
+          scroll-margin-top:
+            100px;
+
           border:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.075
+              0.1
             );
+
           border-radius:
             14px;
+
           background:
             rgba(
-              10,
-              23,
-              28,
-              0.76
+              255,
+              255,
+              255,
+              0.03
             );
-          overflow:
-            hidden;
-          scroll-margin-top:
-            100px;
         }
 
         .docsSectionHeader {
           width:
             100%;
+
           display:
             flex;
+
           justify-content:
             space-between;
+
           align-items:
             center;
+
           gap:
             20px;
+
           padding:
-            22px;
+            23px;
+
           border:
             0;
+
           background:
             transparent;
-          text-align:
-            left;
+
           color:
             inherit;
+
+          text-align:
+            left;
         }
 
         .docsSectionHeader:hover {
@@ -1014,433 +1165,710 @@ export default function Docs() {
               255,
               255,
               255,
-              0.018
+              0.025
             );
         }
 
         .docsSectionHeader h2 {
           margin:
-            6px 0 0;
+            7px 0 0;
+
+          color:
+            #f1f8f6;
+
           font-size:
-            20px;
+            21px;
+
+          letter-spacing:
+            -0.02em;
         }
 
         .docsChevron {
           color:
-            #809a94;
+            #65d9c7;
+
           font-size:
-            17px;
+            18px;
         }
 
         .docsSectionBody {
           padding:
-            0 22px
-            24px;
+            2px 23px 26px;
+
           border-top:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.05
+              0.08
             );
         }
 
         .docsSectionBody
           > p {
           color:
-            #a0b3af;
-          line-height:
-            1.7;
+            #a7bbb7;
+
           font-size:
-            12px;
+            12.5px;
+
+          line-height:
+            1.75;
         }
 
         .docsSectionBody h3 {
           margin:
-            24px 0 8px;
+            27px 0 9px;
+
           color:
-            #dce7e4;
+            #e3eeeb;
+
           font-size:
             13px;
         }
-
-        /*
-         * FLOW
-         */
 
         .docsFlow,
-        .docsGovernanceFlow {
+        .regulatoryFlow {
           display:
-            flex;
+            grid;
+
+          grid-template-columns:
+            1fr auto
+            1fr auto
+            1fr auto
+            1fr auto
+            1fr;
+
           align-items:
             center;
+
           gap:
             8px;
+
           margin:
-            22px 0;
+            24px 0;
         }
 
-        .docsFlow > div {
-          flex:
-            1;
+        .regulatoryFlow {
+          grid-template-columns:
+            1fr auto
+            1fr auto
+            1fr auto
+            1fr;
+        }
+
+        .flowBox {
           min-height:
-            80px;
+            92px;
+
           padding:
             13px;
+
           border:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.06
-            );
-          border-radius:
-            8px;
-          background:
-            rgba(
-              0,
-              0,
-              0,
-              0.11
-            );
-        }
-
-        .docsFlow
-          > div
-          span {
-          display:
-            block;
-          color:
-            #6f8882;
-          font-size:
-            7px;
-          letter-spacing:
-            0.1em;
-        }
-
-        .docsFlow
-          > div
-          strong {
-          display:
-            block;
-          margin-top:
-            8px;
-          color:
-            #b7c8c4;
-          font-size:
-            10px;
-        }
-
-        .docsFlow > b,
-        .docsGovernanceFlow
-          > b {
-          color:
-            #607972;
-          font-weight:
-            400;
-        }
-
-        /*
-         * METHOD BAR
-         */
-
-        .docsMethodBar {
-          display:
-            flex;
-          align-items:
-            center;
-          gap:
-            9px;
-          margin:
-            18px 0;
-          padding:
-            11px;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.06
-            );
-          border-radius:
-            8px;
-          background:
-            rgba(
-              0,
-              0,
-              0,
-              0.12
-            );
-        }
-
-        .docsMethod {
-          padding:
-            5px 7px;
-          border-radius:
-            5px;
-          background:
-            rgba(
-              103,
-              181,
-              153,
               0.09
             );
-          color:
-            #acd7c2;
-          font-size:
-            8px;
-          font-weight:
-            800;
-        }
 
-        .docsMethodBar
-          code {
-          flex:
-            1;
-          color:
-            #b4c8c3;
-          font-size:
-            10px;
-        }
-
-        .docsAccess {
-          color:
-            #718b85;
-          font-size:
-            8px;
-          text-transform:
-            uppercase;
-        }
-
-        /*
-         * CODE
-         */
-
-        .docsCode {
-          margin:
-            9px 0 20px;
-          padding:
-            16px;
-          overflow-x:
-            auto;
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.065
-            );
           border-radius:
             9px;
+
           background:
-            #061115;
-          color:
-            #b9cbc6;
-          line-height:
-            1.6;
-          font-size:
-            10px;
+            rgba(
+              5,
+              19,
+              20,
+              0.34
+            );
         }
 
-        /*
-         * CALLOUTS
-         */
+        .flowBox span {
+          display:
+            block;
+
+          color:
+            #60d9c6;
+
+          font-size:
+            7.5px;
+
+          font-weight:
+            800;
+
+          letter-spacing:
+            0.11em;
+        }
+
+        .flowBox strong {
+          display:
+            block;
+
+          margin-top:
+            10px;
+
+          color:
+            #cddbd8;
+
+          font-size:
+            10px;
+
+          line-height:
+            1.45;
+        }
+
+        .flowArrow {
+          color:
+            #5b8881;
+
+          font-size:
+            16px;
+        }
 
         .docsCallout,
         .docsWarning {
           margin-top:
-            18px;
+            20px;
+
           padding:
-            13px;
+            14px 15px;
+
           border-left:
             2px solid
             rgba(
-              132,
-              200,
-              186,
-              0.36
+              45,
+              212,
+              191,
+              0.4
             );
+
           background:
             rgba(
-              78,
-              142,
-              129,
-              0.055
+              20,
+              184,
+              166,
+              0.06
             );
-          color:
-            #8ea6a0;
-          line-height:
-            1.6;
-          font-size:
-            10px;
-        }
 
-        .docsCallout
-          code {
           color:
-            #bfd6d0;
+            #a9bdb9;
+
+          font-size:
+            10.5px;
+
+          line-height:
+            1.65;
         }
 
         .docsWarning {
           border-left-color:
             rgba(
-              207,
-              164,
-              91,
-              0.4
+              214,
+              170,
+              92,
+              0.55
             );
+
           background:
             rgba(
               172,
               126,
               57,
-              0.045
+              0.07
             );
+
           color:
-            #b6a77e;
+            #c3b48b;
         }
 
-        /*
-         * ENDPOINT ROW
-         */
-
-        .docsEndpoint {
+        .docsPrinciples,
+        .traceGrid,
+        .useGrid {
           display:
             grid;
+
           grid-template-columns:
-            150px
-            230px
-            1fr;
+            repeat(
+              3,
+              1fr
+            );
+
           gap:
-            14px;
-          padding:
-            14px 0;
-          border-bottom:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.05
+            10px;
+
+          margin-top:
+            22px;
+        }
+
+        .traceGrid {
+          grid-template-columns:
+            repeat(
+              2,
+              1fr
             );
         }
 
-        .docsEndpointMethod {
-          color:
-            #9fcbb7;
-          font-family:
-            ui-monospace,
-            monospace;
-          font-size:
-            9px;
+        .useGrid {
+          grid-template-columns:
+            repeat(
+              2,
+              1fr
+            );
         }
 
-        .docsEndpointPath {
-          color:
-            #b4c6c2;
-          font-family:
-            ui-monospace,
-            monospace;
-          font-size:
-            9px;
-        }
-
-        .docsEndpointDescription {
-          color:
-            #889f9a;
-          line-height:
-            1.5;
-          font-size:
-            10px;
-        }
-
-        /*
-         * GOVERNANCE FLOW
-         */
-
-        .docsGovernanceFlow {
-          flex-wrap:
-            wrap;
-          margin-top:
-            25px;
-        }
-
-        .docsGovernanceFlow
-          span {
+        .principleCard,
+        .traceCard,
+        .useCard {
           padding:
-            8px 9px;
+            16px;
+
           border:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.06
+              0.09
             );
+
           border-radius:
-            6px;
+            10px;
+
           background:
             rgba(
-              255,
-              255,
-              255,
-              0.025
+              5,
+              19,
+              20,
+              0.32
             );
-          color:
-            #879f99;
-          font-size:
-            7px;
-          letter-spacing:
-            0.08em;
         }
 
-        /*
-         * FOOTER
-         */
+        .principleCard h4,
+        .traceCard h4,
+        .useCard h4 {
+          margin:
+            0 0 7px;
 
-        .docsFooter {
+          color:
+            #dfeae7;
+
+          font-size:
+            11px;
+        }
+
+        .principleCard p,
+        .traceCard p,
+        .useCard p {
+          margin:
+            0;
+
+          color:
+            #9eb3af;
+
+          font-size:
+            9.5px;
+
+          line-height:
+            1.6;
+        }
+
+        .traceCard > span,
+        .useCard > span {
+          display:
+            block;
+
+          margin-bottom:
+            10px;
+
+          color:
+            #58d9c5;
+
+          font-size:
+            7.5px;
+
+          font-weight:
+            800;
+
+          letter-spacing:
+            0.11em;
+        }
+
+        .useExample {
+          margin-top:
+            12px;
+
+          padding-top:
+            10px;
+
           border-top:
             1px solid
             rgba(
               255,
               255,
               255,
-              0.06
+              0.07
             );
-          padding:
-            25px 5vw;
-          display:
-            flex;
-          justify-content:
-            center;
-          align-items:
-            center;
-          gap:
-            10px;
+
           color:
-            #637b76;
+            #b9cbc7;
+
           font-size:
             9px;
-          letter-spacing:
-            0.12em;
+
+          font-style:
+            italic;
+
+          line-height:
+            1.55;
         }
 
-        .docsFooter strong {
+        .methodologyList {
+          margin-top:
+            20px;
+
+          overflow:
+            hidden;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.09
+            );
+
+          border-radius:
+            10px;
+        }
+
+        .methodologyRow {
+          display:
+            grid;
+
+          grid-template-columns:
+            42px 190px 1fr;
+
+          gap:
+            13px;
+
+          padding:
+            15px;
+
+          border-bottom:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.07
+            );
+
+          background:
+            rgba(
+              5,
+              19,
+              20,
+              0.25
+            );
+        }
+
+        .methodologyRow:last-child {
+          border-bottom:
+            none;
+        }
+
+        .methodologyNumber {
           color:
-            #819b95;
+            #56d7c3;
+
+          font-size:
+            8px;
+
+          font-weight:
+            800;
         }
 
-        /*
-         * RESPONSIVE
-         */
+        .methodologyTitle {
+          color:
+            #dbe8e5;
+
+          font-size:
+            10.5px;
+
+          font-weight:
+            700;
+        }
+
+        .methodologyText {
+          color:
+            #9eb3af;
+
+          font-size:
+            10px;
+
+          line-height:
+            1.55;
+        }
+
+        .docsQuote {
+          margin-top:
+            22px;
+
+          padding:
+            18px;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.2
+            );
+
+          border-radius:
+            10px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.06
+            );
+        }
+
+        .docsQuote span {
+          display:
+            block;
+
+          margin-bottom:
+            8px;
+
+          color:
+            #5ddac7;
+
+          font-size:
+            8px;
+
+          font-weight:
+            800;
+
+          letter-spacing:
+            0.13em;
+        }
+
+        .docsQuote strong {
+          color:
+            #e7f2ef;
+
+          font-size:
+            14px;
+
+          line-height:
+            1.5;
+        }
+
+        .docsCode {
+          margin:
+            10px 0 20px;
+
+          padding:
+            17px;
+
+          overflow-x:
+            auto;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          border-radius:
+            9px;
+
+          background:
+            #071719;
+
+          color:
+            #c7d9d5;
+
+          font-size:
+            10px;
+
+          line-height:
+            1.65;
+        }
+
+        .docsEndpoint {
+          display:
+            grid;
+
+          grid-template-columns:
+            80px 190px 1fr;
+
+          gap:
+            14px;
+
+          padding:
+            15px 0;
+
+          border-bottom:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.07
+            );
+        }
+
+        .docsEndpointMethod {
+          color:
+            #68dfcc;
+
+          font-family:
+            ui-monospace,
+            monospace;
+
+          font-size:
+            9px;
+        }
+
+        .docsEndpointPath {
+          color:
+            #c5d6d2;
+
+          font-family:
+            ui-monospace,
+            monospace;
+
+          font-size:
+            9px;
+        }
+
+        .docsEndpointDescription {
+          color:
+            #9eb3af;
+
+          font-size:
+            10px;
+
+          line-height:
+            1.55;
+        }
+
+        .technicalLink {
+          margin-top:
+            24px;
+
+          padding:
+            17px;
+
+          display:
+            flex;
+
+          justify-content:
+            space-between;
+
+          align-items:
+            center;
+
+          gap:
+            25px;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.18
+            );
+
+          border-radius:
+            10px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.05
+            );
+        }
+
+        .technicalLink strong {
+          display:
+            block;
+
+          margin-top:
+            7px;
+
+          color:
+            #dceae7;
+
+          font-size:
+            11px;
+        }
+
+        .technicalLink p {
+          max-width:
+            520px;
+
+          margin:
+            6px 0 0;
+
+          color:
+            #9eb3af;
+
+          font-size:
+            9.5px;
+
+          line-height:
+            1.6;
+        }
+
+        .technicalLink a {
+          flex-shrink:
+            0;
+
+          padding:
+            9px 11px;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.24
+            );
+
+          border-radius:
+            7px;
+
+          color:
+            #66dfcc;
+
+          font-size:
+            9px;
+
+          font-weight:
+            700;
+        }
 
         @media (
           max-width:
-            850px
+            950px
         ) {
           .docsModel {
             grid-template-columns:
@@ -1458,42 +1886,82 @@ export default function Docs() {
           .docsSidebar {
             position:
               relative;
+
             top:
               auto;
           }
 
-          .docsEndpoint {
+          .docsFlow,
+          .regulatoryFlow {
             grid-template-columns:
               1fr;
           }
 
-          .docsFlow {
-            align-items:
-              stretch;
-            flex-direction:
-              column;
-          }
+          .flowArrow {
+            justify-self:
+              center;
 
-          .docsFlow > b {
             transform:
               rotate(
                 90deg
               );
-            align-self:
-              center;
+          }
+
+          .methodologyRow {
+            grid-template-columns:
+              35px 1fr;
+          }
+
+          .methodologyText {
+            grid-column:
+              2;
           }
         }
 
         @media (
           max-width:
-            500px
+            650px
         ) {
           .docsMain {
             width:
-              92vw;
+              calc(
+                100% -
+                36px
+              );
           }
 
-          .docsModel {
+          .docsHero {
+            padding-top:
+              66px;
+          }
+
+          .docsHero h1 {
+            font-size:
+              43px;
+          }
+
+          .docsHero p {
+            font-size:
+              16px;
+          }
+
+          .docsModel,
+          .docsPrinciples,
+          .traceGrid,
+          .useGrid {
+            grid-template-columns:
+              1fr;
+          }
+
+          .technicalLink {
+            align-items:
+              flex-start;
+
+            flex-direction:
+              column;
+          }
+
+          .docsEndpoint {
             grid-template-columns:
               1fr;
           }
@@ -1503,11 +1971,426 @@ export default function Docs() {
   );
 }
 
-/*
- * =========================================================
- * REUSABLE DOC COMPONENTS
- * =========================================================
- */
+function SiteHeader() {
+  return (
+    <>
+      <div className="siteHeader">
+        <div className="siteHeaderInner">
+          <Link
+            href="/"
+            className="brand"
+          >
+            <div className="brandBadge">
+              BRX
+            </div>
+
+            <div>
+              <div className="brandName">
+                BANKREGX
+              </div>
+
+              <div className="brandSub">
+                AI Control Intelligence for Banking
+              </div>
+            </div>
+          </Link>
+
+          <nav className="nav">
+            <Link
+              href="/"
+              className="navLink"
+            >
+              Home
+            </Link>
+
+            <Link
+              href="/regulatory-news"
+              className="navLink"
+            >
+              Regulatory Intelligence
+            </Link>
+
+            <Link
+              href="/docs"
+              className="navLink active"
+            >
+              Docs
+            </Link>
+
+            <Link
+              href="/security-governance"
+              className="navLink"
+            >
+              Security &amp; Governance
+            </Link>
+          </nav>
+
+          <Link
+            href="/admin"
+            className="adminLink"
+          >
+            <span>
+              Governance Admin
+            </span>
+
+            <span className="privateTag">
+              PRIVATE
+            </span>
+          </Link>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .siteHeader {
+          position:
+            sticky;
+
+          top:
+            0;
+
+          z-index:
+            50;
+
+          border-bottom:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.1
+            );
+
+          background:
+            rgba(
+              10,
+              26,
+              28,
+              0.92
+            );
+
+          backdrop-filter:
+            blur(16px);
+        }
+
+        .siteHeaderInner {
+          max-width:
+            1240px;
+
+          min-height:
+            76px;
+
+          margin:
+            0 auto;
+
+          padding:
+            0 28px;
+
+          display:
+            flex;
+
+          align-items:
+            center;
+
+          gap:
+            28px;
+        }
+
+        .brand {
+          display:
+            flex;
+
+          align-items:
+            center;
+
+          gap:
+            11px;
+
+          flex-shrink:
+            0;
+        }
+
+        .brandBadge {
+          width:
+            38px;
+
+          height:
+            38px;
+
+          display:
+            grid;
+
+          place-items:
+            center;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.62
+            );
+
+          border-radius:
+            9px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.13
+            );
+
+          color:
+            #6ee7d3;
+
+          font-size:
+            12px;
+
+          font-weight:
+            800;
+
+          letter-spacing:
+            0.06em;
+        }
+
+        .brandName {
+          color:
+            #f7fcfb;
+
+          font-size:
+            14px;
+
+          font-weight:
+            800;
+
+          letter-spacing:
+            0.08em;
+        }
+
+        .brandSub {
+          margin-top:
+            2px;
+
+          color:
+            #91aaa6;
+
+          font-size:
+            10px;
+
+          white-space:
+            nowrap;
+        }
+
+        .nav {
+          flex:
+            1;
+
+          display:
+            flex;
+
+          justify-content:
+            center;
+
+          align-items:
+            center;
+
+          gap:
+            25px;
+        }
+
+        .navLink {
+          color:
+            #bdd0cc;
+
+          font-size:
+            13px;
+
+          white-space:
+            nowrap;
+        }
+
+        .navLink:hover {
+          color:
+            #f1f8f7;
+        }
+
+        .navLink.active {
+          color:
+            #64dfcb;
+        }
+
+        .adminLink {
+          flex-shrink:
+            0;
+
+          display:
+            inline-flex;
+
+          align-items:
+            center;
+
+          gap:
+            8px;
+
+          min-height:
+            34px;
+
+          padding:
+            0 10px;
+
+          border:
+            1px solid
+            rgba(
+              45,
+              212,
+              191,
+              0.33
+            );
+
+          border-radius:
+            7px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.08
+            );
+
+          color:
+            #c4d7d3;
+
+          font-size:
+            10px;
+
+          font-weight:
+            700;
+        }
+
+        .privateTag {
+          padding:
+            4px 6px;
+
+          border-radius:
+            5px;
+
+          background:
+            rgba(
+              20,
+              184,
+              166,
+              0.16
+            );
+
+          color:
+            #65e2cf;
+
+          font-size:
+            8px;
+
+          font-weight:
+            800;
+
+          letter-spacing:
+            0.11em;
+        }
+
+        @media (
+          max-width:
+            1100px
+        ) {
+          .siteHeaderInner {
+            gap:
+              18px;
+          }
+
+          .nav {
+            gap:
+              16px;
+          }
+
+          .navLink {
+            font-size:
+              12px;
+          }
+        }
+
+        @media (
+          max-width:
+            850px
+        ) {
+          .siteHeaderInner {
+            min-height:
+              auto;
+
+            padding-top:
+              15px;
+
+            padding-bottom:
+              13px;
+
+            flex-wrap:
+              wrap;
+          }
+
+          .brand {
+            flex:
+              1;
+          }
+
+          .adminLink {
+            margin-left:
+              auto;
+          }
+
+          .nav {
+            order:
+              3;
+
+            flex:
+              0 0 100%;
+
+            width:
+              100%;
+
+            justify-content:
+              flex-start;
+
+            overflow-x:
+              auto;
+          }
+        }
+
+        @media (
+          max-width:
+            560px
+        ) {
+          .siteHeaderInner {
+            padding-left:
+              18px;
+
+            padding-right:
+              18px;
+          }
+
+          .brandSub {
+            display:
+              none;
+          }
+
+          .adminLink
+            > span:first-child {
+            display:
+              none;
+          }
+        }
+      `}</style>
+    </>
+  );
+}
 
 function ModelCard({
   number,
@@ -1547,9 +2430,7 @@ function DocSection({
       <button
         type="button"
         className="docsSectionHeader"
-        onClick={
-          onToggle
-        }
+        onClick={onToggle}
       >
         <div>
           <div className="docsSectionEyebrow">
@@ -1568,33 +2449,124 @@ function DocSection({
         </span>
       </button>
 
-      {open && (
+      {open ? (
         <div className="docsSectionBody">
           {children}
         </div>
-      )}
+      ) : null}
     </article>
   );
 }
 
-function MethodBar({
-  method,
-  path,
-  access,
+function FlowBox({
+  label,
+  value,
 }) {
   return (
-    <div className="docsMethodBar">
-      <span className="docsMethod">
-        {method}
+    <div className="flowBox">
+      <span>
+        {label}
       </span>
 
-      <code>
-        {path}
-      </code>
+      <strong>
+        {value}
+      </strong>
+    </div>
+  );
+}
 
-      <span className="docsAccess">
-        {access}
+function FlowArrow() {
+  return (
+    <div className="flowArrow">
+      →
+    </div>
+  );
+}
+
+function PrincipleCard({
+  title,
+  text,
+}) {
+  return (
+    <div className="principleCard">
+      <h4>
+        {title}
+      </h4>
+
+      <p>
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function MethodologyRow({
+  number,
+  title,
+  text,
+}) {
+  return (
+    <div className="methodologyRow">
+      <div className="methodologyNumber">
+        {number}
+      </div>
+
+      <div className="methodologyTitle">
+        {title}
+      </div>
+
+      <div className="methodologyText">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function TraceCard({
+  label,
+  title,
+  text,
+}) {
+  return (
+    <div className="traceCard">
+      <span>
+        {label}
       </span>
+
+      <h4>
+        {title}
+      </h4>
+
+      <p>
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function UseCard({
+  number,
+  title,
+  example,
+  text,
+}) {
+  return (
+    <div className="useCard">
+      <span>
+        {number}
+      </span>
+
+      <h4>
+        {title}
+      </h4>
+
+      <p>
+        {text}
+      </p>
+
+      <div className="useExample">
+        “{example}”
+      </div>
     </div>
   );
 }
@@ -1630,5 +2602,164 @@ function EndpointRow({
         {description}
       </div>
     </div>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <>
+      <div className="siteFooter">
+        <div>
+          <strong>
+            BankRegX
+          </strong>
+
+          <span>
+            AI Control Intelligence for Banking
+          </span>
+        </div>
+
+        <div className="footerLinks">
+          <Link href="/">
+            Home
+          </Link>
+
+          <Link href="/regulatory-news">
+            Regulatory Intelligence
+          </Link>
+
+          <Link href="/docs">
+            Docs
+          </Link>
+
+          <Link href="/security-governance">
+            Security &amp; Governance
+          </Link>
+
+          <Link href="/admin">
+            Governance Admin · Private
+          </Link>
+        </div>
+
+        <div className="footerNote">
+          BankRegX provides
+          AI-assisted professional
+          analysis. Important
+          conclusions should be
+          independently reviewed and
+          validated.
+        </div>
+      </div>
+
+      <style jsx>{`
+        .siteFooter {
+          max-width:
+            1120px;
+
+          margin:
+            0 auto;
+
+          padding:
+            38px 28px 50px;
+
+          border-top:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.08
+            );
+
+          display:
+            grid;
+
+          grid-template-columns:
+            1fr 1fr 1.4fr;
+
+          gap:
+            35px;
+
+          color:
+            #8fa7a3;
+
+          font-size:
+            11px;
+
+          line-height:
+            1.65;
+        }
+
+        strong {
+          display:
+            block;
+
+          margin-bottom:
+            3px;
+
+          color:
+            #c3d4d1;
+
+          font-size:
+            12px;
+        }
+
+        span {
+          display:
+            block;
+        }
+
+        .footerLinks {
+          display:
+            flex;
+
+          flex-direction:
+            column;
+
+          gap:
+            5px;
+        }
+
+        .footerLinks
+          :global(a) {
+          color:
+            #a6bbb7;
+        }
+
+        .footerLinks
+          :global(a:hover) {
+          color:
+            #65e0cd;
+        }
+
+        .footerNote {
+          color:
+            #8ea5a1;
+        }
+
+        @media (
+          max-width:
+            850px
+        ) {
+          .siteFooter {
+            grid-template-columns:
+              1fr;
+          }
+        }
+
+        @media (
+          max-width:
+            560px
+        ) {
+          .siteFooter {
+            padding-left:
+              18px;
+
+            padding-right:
+              18px;
+          }
+        }
+      `}</style>
+    </>
   );
 }
