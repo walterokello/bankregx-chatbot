@@ -7,27 +7,17 @@ function createUserId() {
     return "bankregx-regulatory";
   }
 
-  const existing =
-    window.localStorage.getItem(
-      "bankregxUserId"
-    );
+  const existing = window.localStorage.getItem("bankregxUserId");
 
   if (existing) {
     return existing;
   }
 
-  const generated =
-    `brx_${Date.now().toString(
-      36
-    )}_${Math.random()
-      .toString(36)
-      .slice(2, 9)}`;
+  const generated = `brx_${Date.now().toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2, 9)}`;
 
-  window.localStorage.setItem(
-    "bankregxUserId",
-    generated
-  );
-
+  window.localStorage.setItem("bankregxUserId", generated);
   return generated;
 }
 
@@ -36,248 +26,141 @@ function parseDate(value) {
     return null;
   }
 
-  const date =
-    new Date(value);
-
-  return Number.isNaN(
-    date.getTime()
-  )
-    ? null
-    : date;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function formatDate(value) {
-  const date =
-    parseDate(value);
+  const date = parseDate(value);
 
   if (!date) {
     return "—";
   }
 
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }
-  ).format(date);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
-function formatRefreshTime(
-  value
-) {
-  const date =
-    parseDate(value);
+function formatRefreshTime(value) {
+  const date = parseDate(value);
 
   if (!date) {
     return "—";
   }
 
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }
-  ).format(date);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
 
 export default function RegulatoryIntelligence() {
-  const [feeds, setFeeds] =
-    useState([]);
+  const [feeds, setFeeds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [refreshedAt, setRefreshedAt] = useState(null);
+  const [userId, setUserId] = useState("bankregx-regulatory");
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  const [search, setSearch] =
-    useState("");
-
-  const [
-    sourceFilter,
-    setSourceFilter,
-  ] = useState("all");
-
-  const [
-    refreshedAt,
-    setRefreshedAt,
-  ] = useState(null);
-
-  const [userId, setUserId] =
-    useState(
-      "bankregx-regulatory"
-    );
-
-  const [
-    selectedItem,
-    setSelectedItem,
-  ] = useState(null);
-
-  const [
-    analysis,
-    setAnalysis,
-  ] = useState(null);
-
-  const [
-    analysisLoading,
-    setAnalysisLoading,
-  ] = useState(false);
-
-  const [
-    analysisError,
-    setAnalysisError,
-  ] = useState("");
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
 
   useEffect(() => {
-    setUserId(
-      createUserId()
-    );
-
+    setUserId(createUserId());
     loadFeeds();
   }, []);
 
-  const allItems =
-    useMemo(() => {
-      const rows = [];
+  const allItems = useMemo(() => {
+    const rows = [];
 
-      feeds.forEach(
-        (feed) => {
-          const source =
-            feed?.source ||
-            feed?.name ||
-            "Regulator";
+    feeds.forEach((feed) => {
+      const source = feed?.source || feed?.name || "Regulator";
 
-          (
-            feed?.items || []
-          ).forEach(
-            (item) => {
-              rows.push({
-                ...item,
-                source,
-              });
-            }
-          );
-        }
-      );
+      (feed?.items || []).forEach((item) => {
+        rows.push({
+          ...item,
+          source,
+        });
+      });
+    });
 
-      return rows.sort(
-        (a, b) => {
-          const aDate =
-            parseDate(
-              a?.isoDate ||
-                a?.pubDate
-            )?.getTime() ||
-            0;
+    return rows.sort((a, b) => {
+      const aDate =
+        parseDate(a?.isoDate || a?.pubDate)?.getTime() || 0;
 
-          const bDate =
-            parseDate(
-              b?.isoDate ||
-                b?.pubDate
-            )?.getTime() ||
-            0;
+      const bDate =
+        parseDate(b?.isoDate || b?.pubDate)?.getTime() || 0;
 
-          return (
-            bDate -
-            aDate
-          );
-        }
-      );
-    }, [feeds]);
+      return bDate - aDate;
+    });
+  }, [feeds]);
 
-  const sources =
-    useMemo(() => {
-      return [
-        ...new Set(
-          allItems
-            .map(
-              (item) =>
-                item.source
-            )
-            .filter(Boolean)
-        ),
-      ].sort();
-    }, [allItems]);
+  const sources = useMemo(() => {
+    return [
+      ...new Set(
+        allItems
+          .map((item) => item.source)
+          .filter(Boolean)
+      ),
+    ].sort();
+  }, [allItems]);
 
-  const filteredItems =
-    useMemo(() => {
-      const term =
-        search
-          .trim()
-          .toLowerCase();
+  const filteredItems = useMemo(() => {
+    const term = search.trim().toLowerCase();
 
-      return allItems.filter(
-        (item) => {
-          const matchesSource =
-            sourceFilter ===
-              "all" ||
-            item.source ===
-              sourceFilter;
+    return allItems.filter((item) => {
+      const matchesSource =
+        sourceFilter === "all" ||
+        item.source === sourceFilter;
 
-          if (
-            !matchesSource
-          ) {
-            return false;
-          }
+      if (!matchesSource) {
+        return false;
+      }
 
-          if (!term) {
-            return true;
-          }
+      if (!term) {
+        return true;
+      }
 
-          const haystack = [
-            item?.title,
-            item?.summary,
-            item?.description,
-            item?.contentSnippet,
-            item?.source,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
+      const haystack = [
+        item?.title,
+        item?.summary,
+        item?.description,
+        item?.contentSnippet,
+        item?.source,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
-          return haystack.includes(
-            term
-          );
-        }
-      );
-    }, [
-      allItems,
-      search,
-      sourceFilter,
-    ]);
+      return haystack.includes(term);
+    });
+  }, [allItems, search, sourceFilter]);
 
-  const latestPublished =
-    allItems.length
-      ? allItems[0]
-          ?.isoDate ||
-        allItems[0]
-          ?.pubDate
-      : null;
+  const latestPublished = allItems.length
+    ? allItems[0]?.isoDate || allItems[0]?.pubDate
+    : null;
 
   async function loadFeeds() {
     setLoading(true);
     setError("");
 
     try {
-      const response =
-        await fetch(
-          "/api/regulatory-news"
-        );
-
-      const text =
-        await response.text();
+      const response = await fetch("/api/regulatory-news");
+      const text = await response.text();
 
       let data = [];
 
       try {
-        data = text
-          ? JSON.parse(text)
-          : [];
+        data = text ? JSON.parse(text) : [];
       } catch {
         throw new Error(
           text ||
@@ -293,15 +176,8 @@ export default function RegulatoryIntelligence() {
         );
       }
 
-      setFeeds(
-        Array.isArray(data)
-          ? data
-          : []
-      );
-
-      setRefreshedAt(
-        new Date()
-      );
+      setFeeds(Array.isArray(data) ? data : []);
+      setRefreshedAt(new Date());
     } catch (loadError) {
       console.error(
         "Regulatory intelligence load failed:",
@@ -319,25 +195,15 @@ export default function RegulatoryIntelligence() {
     }
   }
 
-  async function analyseItem(
-    item
-  ) {
-    if (
-      !item ||
-      analysisLoading
-    ) {
+  async function analyseItem(item) {
+    if (!item || analysisLoading) {
       return;
     }
 
     setSelectedItem(item);
-
     setAnalysis(null);
-
     setAnalysisError("");
-
-    setAnalysisLoading(
-      true
-    );
+    setAnalysisLoading(true);
 
     const summary =
       item?.summary ||
@@ -349,56 +215,32 @@ export default function RegulatoryIntelligence() {
 
 First establish what is actually stated by the regulator. Then identify what is not known, assess which banking products, businesses, processes, risks or controls may be affected, consider whether existing controls may already address the issue, and distinguish clearly between REGULATORY FACT, BANKREGX JUDGEMENT and RECOMMENDED ACTION.
 
-Regulator: ${
-      item?.source ||
-      "Unknown"
-    }
-Title: ${
-      item?.title ||
-      "Untitled development"
-    }
-Published: ${formatDate(
-      item?.isoDate ||
-        item?.pubDate
-    )}
+Regulator: ${item?.source || "Unknown"}
+Title: ${item?.title || "Untitled development"}
+Published: ${formatDate(item?.isoDate || item?.pubDate)}
 Summary: ${summary}
-Source: ${
-      item?.link ||
-      "Not available"
-    }`;
+Source: ${item?.link || "Not available"}`;
 
     try {
-      const response =
-        await fetch(
-          "/api/ask",
-          {
-            method: "POST",
+      const response = await fetch("/api/ask", {
+        method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-            body: JSON.stringify(
-              {
-                query:
-                  prompt,
+        body: JSON.stringify({
+          query: prompt,
+          userId,
+        }),
+      });
 
-                userId,
-              }
-            ),
-          }
-        );
-
-      const text =
-        await response.text();
+      const text = await response.text();
 
       let data = {};
 
       try {
-        data = text
-          ? JSON.parse(text)
-          : {};
+        data = text ? JSON.parse(text) : {};
       } catch {
         throw new Error(
           text ||
@@ -415,31 +257,21 @@ Source: ${
       }
 
       setAnalysis(data);
-    } catch (
-      analysisFailure
-    ) {
+    } catch (analysisFailure) {
       setAnalysisError(
-        analysisFailure
-          ?.message ||
+        analysisFailure?.message ||
           "Unable to analyse this development."
       );
     } finally {
-      setAnalysisLoading(
-        false
-      );
+      setAnalysisLoading(false);
     }
   }
 
   function closeAnalysis() {
     setSelectedItem(null);
-
     setAnalysis(null);
-
     setAnalysisError("");
-
-    setAnalysisLoading(
-      false
-    );
+    setAnalysisLoading(false);
   }
 
   return (
@@ -458,11 +290,9 @@ Source: ${
             </h1>
 
             <p>
-              Monitor regulatory
-              developments and assess what
-              they could mean for banking
-              risks, controls and audit
-              priorities.
+              Monitor regulatory developments and assess
+              what they could mean for banking risks,
+              controls and audit priorities.
             </p>
           </div>
 
@@ -481,30 +311,22 @@ Source: ${
         <section className="statsGrid">
           <StatCard
             label="Developments"
-            value={String(
-              allItems.length
-            )}
+            value={String(allItems.length)}
           />
 
           <StatCard
             label="Sources"
-            value={String(
-              sources.length
-            )}
+            value={String(sources.length)}
           />
 
           <StatCard
             label="Latest published"
-            value={formatDate(
-              latestPublished
-            )}
+            value={formatDate(latestPublished)}
           />
 
           <StatCard
             label="Feed refreshed"
-            value={formatRefreshTime(
-              refreshedAt
-            )}
+            value={formatRefreshTime(refreshedAt)}
           />
         </section>
 
@@ -520,12 +342,9 @@ Source: ${
               </h2>
 
               <p>
-                Review current
-                developments from
-                connected regulatory
-                sources, then ask BankRegX
-                to assess potential control
-                implications.
+                Review current developments from connected
+                regulatory sources, then ask BankRegX to
+                assess potential control implications.
               </p>
             </div>
           </div>
@@ -535,43 +354,29 @@ Source: ${
               type="search"
               value={search}
               onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
+                setSearch(event.target.value)
               }
               placeholder="Search developments..."
             />
 
             <select
-              value={
-                sourceFilter
-              }
+              value={sourceFilter}
               onChange={(event) =>
-                setSourceFilter(
-                  event.target.value
-                )
+                setSourceFilter(event.target.value)
               }
             >
               <option value="all">
                 All sources
               </option>
 
-              {sources.map(
-                (source) => (
-                  <option
-                    key={
-                      source
-                    }
-                    value={
-                      source
-                    }
-                  >
-                    {
-                      source
-                    }
-                  </option>
-                )
-              )}
+              {sources.map((source) => (
+                <option
+                  key={source}
+                  value={source}
+                >
+                  {source}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -581,21 +386,14 @@ Source: ${
             </div>
           ) : null}
 
-          {loading &&
-          allItems.length ===
-            0 ? (
+          {loading && allItems.length === 0 ? (
             <div className="statePanel">
-              Loading regulatory
-              intelligence...
+              Loading regulatory intelligence...
             </div>
-          ) : filteredItems.length >
-            0 ? (
+          ) : filteredItems.length > 0 ? (
             <div className="newsGrid">
               {filteredItems.map(
-                (
-                  item,
-                  index
-                ) => (
+                (item, index) => (
                   <article
                     className="newsCard"
                     key={`${
@@ -605,9 +403,7 @@ Source: ${
                   >
                     <div className="cardMeta">
                       <span className="sourceBadge">
-                        {
-                          item?.source
-                        }
+                        {item?.source}
                       </span>
 
                       <span className="dateText">
@@ -636,9 +432,9 @@ Source: ${
                         "source_page"
                           ? "Source-page summary"
                           : item.summarySource ===
-                            "rss"
-                          ? "Feed summary"
-                          : "Headline only"}
+                              "rss"
+                            ? "Feed summary"
+                            : "Headline only"}
                       </div>
                     ) : null}
 
@@ -646,9 +442,7 @@ Source: ${
                       <button
                         type="button"
                         onClick={() =>
-                          analyseItem(
-                            item
-                          )
+                          analyseItem(item)
                         }
                       >
                         Analyse control impact
@@ -656,9 +450,7 @@ Source: ${
 
                       {item?.link ? (
                         <a
-                          href={
-                            item.link
-                          }
+                          href={item.link}
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -672,9 +464,8 @@ Source: ${
             </div>
           ) : (
             <div className="statePanel">
-              No developments match the
-              current search and source
-              filter.
+              No developments match the current search
+              and source filter.
             </div>
           )}
         </section>
@@ -690,12 +481,10 @@ Source: ${
             </h2>
 
             <p>
-              BankRegX is designed to
-              separate authoritative
-              regulatory facts from
-              assumptions, professional
-              interpretation and
-              recommended actions.
+              BankRegX is designed to separate
+              authoritative regulatory facts from
+              assumptions, professional interpretation
+              and recommended actions.
             </p>
           </div>
 
@@ -732,18 +521,14 @@ Source: ${
           <div
             className="modalBackdrop"
             role="presentation"
-            onMouseDown={
-              closeAnalysis
-            }
+            onMouseDown={closeAnalysis}
           >
             <div
               className="analysisModal"
               role="dialog"
               aria-modal="true"
               aria-label="Regulatory control impact analysis"
-              onMouseDown={(
-                event
-              ) =>
+              onMouseDown={(event) =>
                 event.stopPropagation()
               }
             >
@@ -754,23 +539,14 @@ Source: ${
                   </div>
 
                   <h2>
-                    {
-                      selectedItem
-                        ?.title
-                    }
+                    {selectedItem?.title}
                   </h2>
 
                   <div className="modalMeta">
-                    {
-                      selectedItem
-                        ?.source
-                    }{" "}
-                    ·{" "}
+                    {selectedItem?.source} ·{" "}
                     {formatDate(
-                      selectedItem
-                        ?.isoDate ||
-                        selectedItem
-                          ?.pubDate
+                      selectedItem?.isoDate ||
+                        selectedItem?.pubDate
                     )}
                   </div>
                 </div>
@@ -778,9 +554,7 @@ Source: ${
                 <button
                   type="button"
                   className="closeButton"
-                  onClick={
-                    closeAnalysis
-                  }
+                  onClick={closeAnalysis}
                   aria-label="Close"
                 >
                   ×
@@ -790,15 +564,12 @@ Source: ${
               <div className="modalBody">
                 {analysisLoading ? (
                   <div className="analysisState">
-                    BankRegX is assessing
-                    the potential control
-                    impact...
+                    BankRegX is assessing the potential
+                    control impact...
                   </div>
                 ) : analysisError ? (
                   <div className="analysisError">
-                    {
-                      analysisError
-                    }
+                    {analysisError}
                   </div>
                 ) : analysis?.answer ? (
                   <>
@@ -817,19 +588,15 @@ Source: ${
                           ),
                         }}
                       >
-                        {
-                          analysis.answer
-                        }
+                        {analysis.answer}
                       </ReactMarkdown>
                     </div>
 
                     {Array.isArray(
                       analysis?.browsedPages
                     ) &&
-                    analysis
-                      .browsedPages
-                      .length >
-                      0 ? (
+                    analysis.browsedPages
+                      .length > 0 ? (
                       <div className="sourceBlock">
                         <div className="smallLabel">
                           SOURCES USED
@@ -871,9 +638,7 @@ Source: ${
               <div className="modalFooter">
                 {selectedItem?.link ? (
                   <a
-                    href={
-                      selectedItem.link
-                    }
+                    href={selectedItem.link}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -885,9 +650,7 @@ Source: ${
 
                 <button
                   type="button"
-                  onClick={
-                    closeAnalysis
-                  }
+                  onClick={closeAnalysis}
                 >
                   Close
                 </button>
@@ -904,18 +667,13 @@ Source: ${
 
         :global(html) {
           background: #0a1a1c;
-
-          scroll-behavior:
-            smooth;
+          scroll-behavior: smooth;
         }
 
         :global(body) {
           margin: 0;
-
           background: #0a1a1c;
-
           color: #f4fbfa;
-
           font-family:
             Inter,
             ui-sans-serif,
@@ -928,9 +686,7 @@ Source: ${
 
         :global(a) {
           color: inherit;
-
-          text-decoration:
-            none !important;
+          text-decoration: none !important;
         }
 
         :global(button),
@@ -963,38 +719,25 @@ Source: ${
 
         .hero {
           max-width: 1120px;
-
           margin: 0 auto;
-
-          padding:
-            90px 28px 46px;
+          padding: 90px 28px 46px;
 
           display: flex;
-
-          justify-content:
-            space-between;
-
-          align-items:
-            flex-end;
-
+          justify-content: space-between;
+          align-items: flex-end;
           gap: 35px;
         }
 
         .eyebrow,
         .smallLabel {
           color: #55dbc6;
-
           font-size: 10px;
-
           font-weight: 800;
-
-          letter-spacing:
-            0.18em;
+          letter-spacing: 0.18em;
         }
 
         .hero h1 {
-          margin:
-            15px 0 16px;
+          margin: 15px 0 16px;
 
           color: #f8fcfb;
 
@@ -1006,29 +749,22 @@ Source: ${
             );
 
           line-height: 1;
-
-          letter-spacing:
-            -0.045em;
+          letter-spacing: -0.045em;
         }
 
         .hero p {
           max-width: 720px;
-
           margin: 0;
 
           color: #d1dfdc;
 
           font-size: 18px;
-
           line-height: 1.65;
         }
 
         .refreshButton {
           min-height: 42px;
-
-          padding:
-            0 15px;
-
+          padding: 0 15px;
           flex-shrink: 0;
 
           border:
@@ -1055,23 +791,18 @@ Source: ${
           cursor: pointer;
 
           font-size: 11px;
-
           font-weight: 800;
         }
 
         .refreshButton:disabled {
           opacity: 0.55;
-
           cursor: default;
         }
 
         .statsGrid {
           max-width: 1120px;
-
           margin: 0 auto;
-
-          padding:
-            0 28px 66px;
+          padding: 0 28px 66px;
 
           display: grid;
 
@@ -1090,11 +821,9 @@ Source: ${
         .feedSection,
         .disciplineSection {
           max-width: 1120px;
-
           margin: 0 auto;
 
-          padding:
-            74px 28px;
+          padding: 74px 28px;
 
           border-top:
             1px solid
@@ -1109,22 +838,18 @@ Source: ${
         .feedHeading,
         .disciplineIntro {
           max-width: 720px;
-
           margin-bottom: 28px;
         }
 
         .feedHeading h2,
         .disciplineIntro h2,
         .modalHeader h2 {
-          margin:
-            8px 0 10px;
+          margin: 8px 0 10px;
 
           color: #f7fcfb;
 
           font-size: 30px;
-
-          letter-spacing:
-            -0.025em;
+          letter-spacing: -0.025em;
         }
 
         .feedHeading p,
@@ -1134,7 +859,6 @@ Source: ${
           color: #a2b7b3;
 
           font-size: 14px;
-
           line-height: 1.7;
         }
 
@@ -1156,9 +880,7 @@ Source: ${
         .filters input,
         .filters select {
           min-height: 44px;
-
-          padding:
-            0 13px;
+          padding: 0 13px;
 
           border:
             1px solid
@@ -1170,7 +892,6 @@ Source: ${
             );
 
           border-radius: 8px;
-
           outline: none;
 
           background:
@@ -1271,13 +992,10 @@ Source: ${
 
         .newsCard {
           min-height: 310px;
-
           padding: 22px;
 
           display: flex;
-
-          flex-direction:
-            column;
+          flex-direction: column;
 
           border:
             1px solid
@@ -1301,19 +1019,14 @@ Source: ${
 
         .cardMeta {
           display: flex;
-
-          justify-content:
-            space-between;
-
-          align-items:
-            center;
+          justify-content: space-between;
+          align-items: center;
 
           gap: 12px;
         }
 
         .sourceBadge {
-          padding:
-            5px 7px;
+          padding: 5px 7px;
 
           border-radius: 6px;
 
@@ -1328,14 +1041,10 @@ Source: ${
           color: #67dfcd;
 
           font-size: 8px;
-
           font-weight: 800;
+          letter-spacing: 0.09em;
 
-          letter-spacing:
-            0.09em;
-
-          text-transform:
-            uppercase;
+          text-transform: uppercase;
         }
 
         .dateText {
@@ -1345,17 +1054,13 @@ Source: ${
         }
 
         .newsCard h3 {
-          margin:
-            18px 0 11px;
+          margin: 18px 0 11px;
 
           color: #eef7f5;
 
           font-size: 17px;
-
           line-height: 1.45;
-
-          letter-spacing:
-            -0.012em;
+          letter-spacing: -0.012em;
         }
 
         .summary {
@@ -1364,17 +1069,11 @@ Source: ${
           color: #a3b8b4;
 
           font-size: 12px;
-
           line-height: 1.7;
 
-          display:
-            -webkit-box;
-
-          -webkit-line-clamp:
-            5;
-
-          -webkit-box-orient:
-            vertical;
+          display: -webkit-box;
+          -webkit-line-clamp: 5;
+          -webkit-box-orient: vertical;
 
           overflow: hidden;
         }
@@ -1389,21 +1088,17 @@ Source: ${
 
         .cardActions {
           display: flex;
-
           align-items: center;
 
           gap: 14px;
 
           margin-top: auto;
-
           padding-top: 22px;
         }
 
         .cardActions button {
           min-height: 36px;
-
-          padding:
-            0 11px;
+          padding: 0 11px;
 
           border:
             1px solid
@@ -1429,7 +1124,6 @@ Source: ${
           cursor: pointer;
 
           font-size: 10px;
-
           font-weight: 800;
         }
 
@@ -1471,13 +1165,10 @@ Source: ${
 
         .modalBackdrop {
           position: fixed;
-
           inset: 0;
-
           z-index: 100;
 
           display: grid;
-
           place-items: center;
 
           padding: 24px;
@@ -1508,9 +1199,7 @@ Source: ${
             );
 
           display: flex;
-
-          flex-direction:
-            column;
+          flex-direction: column;
 
           overflow: hidden;
 
@@ -1541,9 +1230,7 @@ Source: ${
           padding: 24px;
 
           display: flex;
-
-          justify-content:
-            space-between;
+          justify-content: space-between;
 
           gap: 24px;
 
@@ -1561,7 +1248,6 @@ Source: ${
           max-width: 760px;
 
           font-size: 23px;
-
           line-height: 1.35;
         }
 
@@ -1575,7 +1261,6 @@ Source: ${
 
         .closeButton {
           width: 34px;
-
           height: 34px;
 
           flex-shrink: 0;
@@ -1604,7 +1289,6 @@ Source: ${
           cursor: pointer;
 
           font-size: 21px;
-
           line-height: 1;
         }
 
@@ -1669,7 +1353,6 @@ Source: ${
           color: #c9d9d5;
 
           font-size: 13.5px;
-
           line-height: 1.75;
         }
 
@@ -1703,7 +1386,6 @@ Source: ${
 
         .sourceBlock {
           margin-top: 24px;
-
           padding-top: 18px;
 
           border-top:
@@ -1718,7 +1400,6 @@ Source: ${
 
         .sourceLinks {
           display: flex;
-
           flex-wrap: wrap;
 
           gap: 8px;
@@ -1727,8 +1408,7 @@ Source: ${
         }
 
         .sourceLinks a {
-          padding:
-            7px 9px;
+          padding: 7px 9px;
 
           border:
             1px solid
@@ -1747,14 +1427,10 @@ Source: ${
         }
 
         .modalFooter {
-          padding:
-            15px 24px;
+          padding: 15px 24px;
 
           display: flex;
-
-          justify-content:
-            space-between;
-
+          justify-content: space-between;
           align-items: center;
 
           gap: 20px;
@@ -1773,15 +1449,12 @@ Source: ${
           color: #67dfcd;
 
           font-size: 10px;
-
           font-weight: 700;
         }
 
         .modalFooter button {
           min-height: 35px;
-
-          padding:
-            0 12px;
+          padding: 0 12px;
 
           border:
             1px solid
@@ -1810,7 +1483,8 @@ Source: ${
         }
 
         @media (
-          max-width: 950px
+          max-width:
+            950px
         ) {
           .statsGrid,
           .disciplineGrid {
@@ -1823,17 +1497,14 @@ Source: ${
         }
 
         @media (
-          max-width: 760px
+          max-width:
+            760px
         ) {
           .hero {
-            align-items:
-              flex-start;
+            align-items: flex-start;
+            flex-direction: column;
 
-            flex-direction:
-              column;
-
-            padding-top:
-              66px;
+            padding-top: 66px;
           }
 
           .newsGrid {
@@ -1848,17 +1519,15 @@ Source: ${
         }
 
         @media (
-          max-width: 560px
+          max-width:
+            560px
         ) {
           .hero,
           .statsGrid,
           .feedSection,
           .disciplineSection {
-            padding-left:
-              18px;
-
-            padding-right:
-              18px;
+            padding-left: 18px;
+            padding-right: 18px;
           }
 
           .statsGrid,
@@ -1868,13 +1537,11 @@ Source: ${
           }
 
           .hero h1 {
-            font-size:
-              43px;
+            font-size: 43px;
           }
 
           .hero p {
-            font-size:
-              16px;
+            font-size: 16px;
           }
 
           .modalBackdrop {
@@ -1884,11 +1551,8 @@ Source: ${
           .modalHeader,
           .modalBody,
           .modalFooter {
-            padding-left:
-              17px;
-
-            padding-right:
-              17px;
+            padding-left: 17px;
+            padding-right: 17px;
           }
         }
       `}</style>
@@ -1968,9 +1632,7 @@ function SiteHeader() {
       <style jsx>{`
         .siteHeader {
           position: sticky;
-
           top: 0;
-
           z-index: 50;
 
           border-bottom:
@@ -1996,27 +1658,21 @@ function SiteHeader() {
 
         .siteHeaderInner {
           max-width: 1240px;
-
           min-height: 76px;
 
           margin: 0 auto;
 
-          padding:
-            0 28px;
+          padding: 0 28px;
 
           display: flex;
-
-          align-items:
-            center;
+          align-items: center;
 
           gap: 28px;
         }
 
         .brand {
           display: flex;
-
-          align-items:
-            center;
+          align-items: center;
 
           gap: 11px;
 
@@ -2025,13 +1681,10 @@ function SiteHeader() {
 
         .brandBadge {
           width: 38px;
-
           height: 38px;
 
           display: grid;
-
-          place-items:
-            center;
+          place-items: center;
 
           border:
             1px solid
@@ -2055,22 +1708,16 @@ function SiteHeader() {
           color: #6ee7d3;
 
           font-size: 12px;
-
           font-weight: 800;
-
-          letter-spacing:
-            0.06em;
+          letter-spacing: 0.06em;
         }
 
         .brandName {
           color: #f7fcfb;
 
           font-size: 14px;
-
           font-weight: 800;
-
-          letter-spacing:
-            0.08em;
+          letter-spacing: 0.08em;
         }
 
         .brandSub {
@@ -2087,12 +1734,8 @@ function SiteHeader() {
           flex: 1;
 
           display: flex;
-
-          justify-content:
-            center;
-
-          align-items:
-            center;
+          justify-content: center;
+          align-items: center;
 
           gap: 25px;
         }
@@ -2116,18 +1759,14 @@ function SiteHeader() {
         .adminLink {
           flex-shrink: 0;
 
-          display:
-            inline-flex;
-
-          align-items:
-            center;
+          display: inline-flex;
+          align-items: center;
 
           gap: 8px;
 
           min-height: 34px;
 
-          padding:
-            0 10px;
+          padding: 0 10px;
 
           border:
             1px solid
@@ -2151,13 +1790,11 @@ function SiteHeader() {
           color: #c4d7d3;
 
           font-size: 10px;
-
           font-weight: 700;
         }
 
         .privateTag {
-          padding:
-            4px 6px;
+          padding: 4px 6px;
 
           border-radius: 5px;
 
@@ -2172,15 +1809,13 @@ function SiteHeader() {
           color: #65e2cf;
 
           font-size: 8px;
-
           font-weight: 800;
-
-          letter-spacing:
-            0.11em;
+          letter-spacing: 0.11em;
         }
 
         @media (
-          max-width: 1100px
+          max-width:
+            1100px
         ) {
           .siteHeaderInner {
             gap: 18px;
@@ -2196,16 +1831,14 @@ function SiteHeader() {
         }
 
         @media (
-          max-width: 850px
+          max-width:
+            850px
         ) {
           .siteHeaderInner {
             min-height: auto;
 
-            padding-top:
-              15px;
-
-            padding-bottom:
-              13px;
+            padding-top: 15px;
+            padding-bottom: 13px;
 
             flex-wrap: wrap;
           }
@@ -2220,31 +1853,25 @@ function SiteHeader() {
 
           .nav {
             order: 3;
-
-            flex:
-              0 0 100%;
+            flex: 0 0 100%;
 
             width: 100%;
 
-            justify-content:
-              flex-start;
+            justify-content: flex-start;
 
             overflow-x: auto;
 
-            padding-bottom:
-              2px;
+            padding-bottom: 2px;
           }
         }
 
         @media (
-          max-width: 560px
+          max-width:
+            560px
         ) {
           .siteHeaderInner {
-            padding-left:
-              18px;
-
-            padding-right:
-              18px;
+            padding-left: 18px;
+            padding-right: 18px;
           }
 
           .brandSub {
@@ -2307,9 +1934,7 @@ function StatCard({
           color: #edf7f5;
 
           font-size: 20px;
-
           font-weight: 700;
-
           line-height: 1.2;
         }
 
@@ -2378,13 +2003,11 @@ function DisciplineCard({
           color: #55dbc6;
 
           font-size: 9px;
-
           font-weight: 800;
         }
 
         h3 {
-          margin:
-            0 0 8px;
+          margin: 0 0 8px;
 
           color: #edf6f4;
 
@@ -2397,7 +2020,6 @@ function DisciplineCard({
           color: #a2b7b3;
 
           font-size: 11.5px;
-
           line-height: 1.65;
         }
       `}</style>
@@ -2442,10 +2064,9 @@ function SiteFooter() {
         </div>
 
         <div className="footerNote">
-          BankRegX regulatory analysis
-          supports professional judgement
-          and should be validated against
-          the authoritative source.
+          BankRegX regulatory analysis supports
+          professional judgement and should be
+          validated against the authoritative source.
         </div>
       </div>
 
@@ -2455,8 +2076,7 @@ function SiteFooter() {
 
           margin: 0 auto;
 
-          padding:
-            38px 28px 50px;
+          padding: 38px 28px 50px;
 
           border-top:
             1px solid
@@ -2470,14 +2090,15 @@ function SiteFooter() {
           display: grid;
 
           grid-template-columns:
-            1fr 1fr 1.4fr;
+            1fr
+            1fr
+            1.4fr;
 
           gap: 35px;
 
           color: #8fa7a3;
 
           font-size: 11px;
-
           line-height: 1.65;
         }
 
@@ -2497,9 +2118,7 @@ function SiteFooter() {
 
         .footerLinks {
           display: flex;
-
-          flex-direction:
-            column;
+          flex-direction: column;
 
           gap: 5px;
         }
@@ -2519,7 +2138,8 @@ function SiteFooter() {
         }
 
         @media (
-          max-width: 850px
+          max-width:
+            850px
         ) {
           .siteFooter {
             grid-template-columns:
@@ -2528,14 +2148,12 @@ function SiteFooter() {
         }
 
         @media (
-          max-width: 560px
+          max-width:
+            560px
         ) {
           .siteFooter {
-            padding-left:
-              18px;
-
-            padding-right:
-              18px;
+            padding-left: 18px;
+            padding-right: 18px;
           }
         }
       `}</style>
