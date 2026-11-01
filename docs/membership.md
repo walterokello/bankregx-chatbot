@@ -44,6 +44,13 @@ registered accounts reading other users' histories, feedback or internal logs.
 Rules do not restrict the trusted Admin SDK. Do not open the database to clients
 or disable email verification to make registration work.
 
+The live rules shown in the Firebase console also include `site_feedback`.
+That collection's existing public reads of approved testimonials are preserved.
+Public feedback creation is limited to valid private/pending-review entries,
+so a caller cannot publish an approved testimonial by bypassing the form.
+Existing entries can only be moderated through trusted administrative access.
+Public submissions are limited to 200 characters for names and 10,000 for comments.
+
 ## Firebase and Vercel setup before release
 
 1. In the Firebase project used by BankRegX, open **Authentication → Sign-in
