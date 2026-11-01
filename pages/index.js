@@ -1,5 +1,6 @@
+import design from "../styles/HomeRefresh.module.css";
 import MembershipPanel, { useMembership } from "../components/MembershipPanel";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 
@@ -72,6 +73,10 @@ function formatDate(value) {
 
 export default function Home() {
   const membership = useMembership();
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const questionInput = useRef(null);
+  const feedRequested = useRef(false);
+  const previousWorkspace = useRef(false);
   const [mode, setMode] = useState("ask");
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
@@ -89,8 +94,14 @@ export default function Home() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   useEffect(() => {
-    loadRegulatoryIntelligence();
-  }, []);
+    if (workspaceOpen) {
+      questionInput.current?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: "instant" });
+    } else if (previousWorkspace.current) {
+      document.querySelector(`[data-mode="${mode}"]`)?.focus({ preventScroll: true });
+    }
+    previousWorkspace.current = workspaceOpen;
+  }, [workspaceOpen, mode]);
 
   const selectedMode = useMemo(
     () => MODES.find((item) => item.id === mode) || MODES[0],
@@ -202,6 +213,7 @@ export default function Home() {
 
   function chooseRegulatoryItem(item) {
     setMode("regulatory");
+    setWorkspaceOpen(true);
 
     const summary =
       item?.summary ||
@@ -297,9 +309,10 @@ export default function Home() {
 
   return (
     <>
-      <main className="page">
+      <main className={`page ${design.page} ${workspaceOpen ? design.working : ""}`}>
         <SiteHeader active="home" />
 
+        {!workspaceOpen && <>
         <section className="hero">
           <div className="eyebrow">
             YOUR FINANCIAL SERVICES CONTROLS COMPANION
@@ -327,9 +340,13 @@ export default function Home() {
                   ? "modeCard active"
                   : "modeCard"
               }
-              onClick={() =>
-                setMode(item.id)
-              }
+              data-mode={item.id}
+              aria-controls="assessment-workspace"
+              aria-expanded={workspaceOpen && mode === item.id}
+              onClick={() => {
+                setMode(item.id);
+                setWorkspaceOpen(true);
+              }}
             >
               <div className="modeTop">
                 <span className="modeNumber">
@@ -337,9 +354,7 @@ export default function Home() {
                 </span>
 
                 <span className="modeIndicator">
-                  {mode === item.id
-                    ? "●"
-                    : "○"}
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </span>
               </div>
 
@@ -354,20 +369,23 @@ export default function Home() {
           ))}
         </section>
 
+        </>}
+
         <MembershipPanel membership={membership} />
 
-        <section
+        {workspaceOpen && <section
           id="assessment-workspace"
           className="workspaceSection"
         >
+          <button type="button" className={design.back} onClick={() => setWorkspaceOpen(false)}>← All options</button>
           <div className="workspaceHeader">
             <div>
               <div className="sectionEyebrow">
-                {selectedMode.title.toUpperCase()}
+                BANKREGX ASSESSMENT
               </div>
 
               <h2>
-                BankRegX assessment
+                {selectedMode.title}
               </h2>
             </div>
 
@@ -377,7 +395,10 @@ export default function Home() {
           </div>
 
           <div className="assessmentCard">
+            <label htmlFor="assessment-question" className={design.questionLabel}>Your question or assessment details</label>
             <textarea
+              id="assessment-question"
+              ref={questionInput}
               className="queryInput"
               value={query}
               onChange={(event) =>
@@ -728,8 +749,15 @@ export default function Home() {
               </aside>
             </div>
           ) : null}
-        </section>
+        </section>}
 
+        {!workspaceOpen && <details className={design.discover} onToggle={event => {
+          if (event.currentTarget.open && !feedRequested.current) {
+            feedRequested.current = true;
+            loadRegulatoryIntelligence();
+          }
+        }}>
+          <summary>Discover more about BankRegX <span aria-hidden="true">+</span></summary>
         <section className="monitorSection">
           <div className="sectionHeadingRow">
             <div>
@@ -905,6 +933,8 @@ export default function Home() {
             />
           </div>
         </section>
+
+        </details>}
 
         <SiteFooter />
       </main>
@@ -2141,7 +2171,7 @@ function SiteHeader({
               </div>
 
               <div className="brandSub">
-                AI Control Intelligence for Banking
+                Financial Services controls made easy
               </div>
             </div>
           </Link>
@@ -2593,7 +2623,7 @@ function SiteFooter() {
           </strong>
 
           <span>
-            AI Control Intelligence for Banking
+            Financial Services controls made easy
           </span>
         </div>
 
@@ -2617,6 +2647,7 @@ function SiteFooter() {
           <Link href="/admin">
             Governance Admin · Private
           </Link>
+          <a href="mailto:contact@bankregx.com">contact@bankregx.com</a>
         </div>
 
         <div className="footerNote">

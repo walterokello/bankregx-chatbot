@@ -84,9 +84,8 @@ export default function MembershipPanel({ membership, expanded = false }) {
     <div className="summary">
       <div>
         <strong>{usage?.plan === 'member' ? 'Free membership' : 'Try BankRegX for free'}</strong>
-        <p aria-live="polite">{loading ? 'Checking your allowance…' : usage
-          ? `${usage.remaining} of ${usage.limit} assessments remaining this month.` : error}</p>
-        {usage && <small>Resets {new Date(usage.resetsAt).toLocaleDateString('en-GB', {day:'numeric', month:'long', timeZone:'UTC'})} (UTC). All four assessment modes share this allowance.</small>}
+        <p aria-live="polite">{usage ? `${usage.remaining} of ${usage.limit} assessments remaining this month.` : loading ? 'Checking your allowance…' : error}</p>
+        {usage && <small>Resets {new Date(usage.resetsAt).toLocaleDateString('en-GB', {day:'numeric', month:'long', timeZone:'UTC'})}</small>}
       </div>
       {user && <button disabled={busy} onClick={() => act(async () => { await signOut(memberAuth()); await refresh(); })}>Sign out</button>}
     </div>
@@ -105,8 +104,8 @@ export default function MembershipPanel({ membership, expanded = false }) {
         <button disabled={busy} onClick={() => act(async () => { await sendEmailVerification(user); setMessage('Verification email sent. Check your inbox.'); })}>Resend verification email</button>
       </>}
     </div> : <details open={expanded || exhausted || undefined}>
-      <summary>Join free or sign in · 5 assessments per month</summary>
-      <p>Visitors get one assessment per browser per month. Verified free members get five per account per month. No payment required.</p>
+      <summary>Join free or sign in</summary>
+      <p>One free assessment as a visitor. Join for five a month. No payment required.</p>
       <form onSubmit={submit}>
         <label htmlFor="member-email">Email address</label>
         <input id="member-email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} />
@@ -121,16 +120,17 @@ export default function MembershipPanel({ membership, expanded = false }) {
     </details>}
     {message && <p role="status">{message}</p>}
     <style jsx>{`
-      .membership { padding: 22px; margin: 24px auto; max-width: 1120px; border: 1px solid #395453; border-radius: 18px; background: #10292b; color: #e6f6f3; line-height: 1.6; }
+      .membership { padding: 20px 24px; margin: 22px auto; width: calc(100% - 56px); max-width: 1064px; box-sizing: border-box; border: 1px solid #31514f; border-radius: 18px; background: #10292bd9; color: #e6f6f3; line-height: 1.5; }
       .summary { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
-      p { margin: 8px 0; } small { display: block; color: #b5cfcb; }
-      summary { cursor: pointer; font-weight: 700; padding: 12px 0; }
+      p { margin: 5px 0; font-size: 14px; } small { display: block; color: #b5cfcb; font-size: 12px; }
+      summary { cursor: pointer; font-weight: 700; padding: 12px 0 2px; color: #7ce7d2; font-size: 14px; }
+      details[open] summary { padding-bottom: 12px; }
       form { display: grid; gap: 10px; max-width: 430px; }
       input { font: inherit; padding: 12px; border-radius: 8px; border: 1px solid #83a6a0; color: #10292b; background: white; width: 100%; box-sizing: border-box; }
       button { font: inherit; cursor: pointer; padding: 10px 16px; margin: 8px 8px 0 0; border: 1px solid #60968d; border-radius: 9px; color: #dffff8; background: #18423c; }
       button:disabled { opacity: .5; cursor: default; }
       button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #67e8d2; outline-offset: 3px; }
-      @media (max-width: 700px) { .membership { margin: 16px; padding: 18px; } .summary { flex-wrap: wrap; } }
+      @media (max-width: 700px) { .membership { width: calc(100% - 36px); margin: 16px auto; padding: 18px; } .summary { flex-wrap: wrap; } }
     `}</style>
   </aside>;
 }
