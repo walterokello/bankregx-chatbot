@@ -1,14 +1,43 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Only the trusted Admin SDK may access quota counters and reservations.
+    match /monthly_assessment_usage/{document=**} {
+      allow read, write: if false;
+    }
     match /chat_history/{document} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
     match /feedback/{document} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
     match /error_logs/{document} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
+    }
+    // Preserve the live site's feedback form and approved testimonials.
+    // Public submissions cannot approve themselves or alter existing entries.
+    match /site_feedback/{document} {
+      allow read: if resource.data.status == "approved";
+      allow create: if request.resource.data.keys().hasOnly([
+          "userId", "name", "comments", "consentToPublish",
+          "allowContact", "status", "createdAt"
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 200
+        && request.resource.data.comments is string
+        && request.resource.data.comments.size() > 0
+        && request.resource.data.comments.size() <= 10000
+        && request.resource.data.consentToPublish is bool
+        && request.resource.data.allowContact is bool
+        && request.resource.data.createdAt is string
+        && (request.resource.data.userId == null || request.resource.data.userId is string)
+        && ((request.resource.data.consentToPublish == true
+            && request.resource.data.status == "pending_review")
+          || (request.resource.data.consentToPublish == false
+            && request.resource.data.status == "private"));
+      allow update, delete: if false;
     }
   }
 }
