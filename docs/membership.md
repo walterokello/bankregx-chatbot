@@ -87,6 +87,8 @@ Run with Node 24 or newer (API tests use Node's module hooks):
 ```sh
 npm ci --no-audit --no-fund
 node tests/assessment-api.test.js
+node tests/membership-response.test.js
+node tests/firebase-auth-import.test.js
 npx --no-install eslint components/MembershipPanel.js lib/assessmentIdentity.js lib/monthlyUsage.js lib/firebaseClientAuth.js lib/firebaseAdmin.js pages/api/membership/status.js pages/api/ask.js tests/membership.test.js tests/assessment-api.test.js
 npm run build -- --webpack
 ```
@@ -115,3 +117,14 @@ On a configured staging/preview environment, verify:
 
 Live Firebase signup/email delivery, production OpenAI calls and deployed rules
 remain unverified until the correct project configuration is provided securely.
+
+## Preview cold-start compatibility
+
+Firebase Admin is pinned to 13.10.0, using jwks-rsa 3.2.2 and jose 4.15.9 in the
+lockfile. The previous Admin 14 / jwks-rsa 4 / jose 6 combination crashed on the
+preview during module loading with ERR_REQUIRE_ESM before the status handler
+could respond. The cold-import regression test disables Node's require(esm)
+support and checks both CommonJS and ESM imports without any real credentials.
+The response parser has four additional tests for HTML platform error pages,
+malformed responses and useful JSON authentication errors. If the underlying
+platform fails, the UI shows a readable message and keeps assessments disabled.

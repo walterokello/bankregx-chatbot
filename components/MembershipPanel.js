@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword,
   onIdTokenChanged, sendEmailVerification, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { memberAuth, memberHeaders } from '../lib/firebaseClientAuth';
+import { readMembershipResponse } from '../lib/membershipResponse';
 
 export function useMembership() {
   const [user, setUser] = useState(null);
@@ -16,10 +17,12 @@ export function useMembership() {
     try {
       const headers = await memberHeaders();
       const response = await fetch('/api/membership/status', { headers, cache: 'no-store' });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Unable to check your allowance.');
+      const data = await readMembershipResponse(response);
       if (current === generation.current) { setUsage(data); setError(''); }
     } catch (failure) {
+      if (failure.code === 'MEMBERSHIP_RESPONSE_UNAVAILABLE') {
+        console.warn('Membership endpoint returned an unexpected response', { status: failure.status, contentType: failure.contentType });
+      }
       if (current === generation.current) { setUsage(null); setError(failure.message); }
     } finally { if (current === generation.current) setLoading(false); }
   }, []);
