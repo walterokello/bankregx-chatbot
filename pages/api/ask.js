@@ -5,12 +5,12 @@ export const config = {
 };
 
 import OpenAI from "openai";
-import { adminDb } from "../../lib/firebaseAdmin";
+import { adminDb, verifyMemberToken } from "../../lib/firebaseAdmin";
+import { assessmentIdentity } from "../../lib/assessmentIdentity";
+import { reserveAssessment, settleAssessment } from "../../lib/monthlyUsage";
 import { FieldValue } from "firebase-admin/firestore";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+
 
 /*
  * =========================================================
@@ -948,6 +948,7 @@ Text: ${clean(
 async function getChatGPTResponse(
   messages
 ) {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const response =
     await openai.chat.completions.create(
       {
@@ -978,6 +979,8 @@ export default async function handler(
   req,
   res
 ) {
+  let reservation;
+  res.setHeader("Cache-Control", "private, no-store");
   try {
     if (
       req.method !== "POST"
@@ -992,7 +995,6 @@ export default async function handler(
 
     const {
       query: userQuery,
-      userId,
     } = req.body || {};
 
     if (
@@ -1009,13 +1011,21 @@ export default async function handler(
         });
     }
 
-    if (!userId) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "userId is required",
-        });
+    // Never trust a browser-supplied userId to identify a member or set a limit.
+    if (!req.headers["content-type"]?.startsWith("application/json")) {
+      return res.status(415).json({ message: "Send assessments as application/json." });
+    }
+    const identity = await assessmentIdentity(req, res, verifyMemberToken);
+    const userId = identity.userId;
+    reservation = await reserveAssessment(adminDb, identity);
+    if (!reservation.allowed) {
+      return res.status(429).json({
+        code: "MONTHLY_LIMIT_REACHED",
+        message: identity.plan === "member"
+          ? "You have used your five assessments this month. Your allowance resets on the first of next month (UTC)."
+          : "You have used your free assessment this month. Join BankRegX for free to get five assessments per month.",
+        usage: reservation.usage,
+      });
     }
 
     const normalizedQuery =
@@ -1667,6 +1677,8 @@ The objective is to help a professional make a better and more defensible judgem
         messages
       );
 
+    if (!aiResponse) throw new Error("The assessment returned an empty response.");
+
     /*
      * Capture the exact methodology snapshot used for this
      * assessment before any usage counters or future edits
@@ -1810,9 +1822,11 @@ The objective is to help a professional make a better and more defensible judgem
      * =====================================================
      */
 
+    await settleAssessment(adminDb, reservation, true);
     return res
       .status(200)
       .json({
+        usage: reservation.usage,
         answer:
           aiResponse,
 
@@ -1898,20 +1912,17 @@ The objective is to help a professional make a better and more defensible judgem
         },
       });
   } catch (error) {
+    try { await settleAssessment(adminDb, reservation, false); }
+    catch (refundError) { console.error("Unable to refund assessment allowance:", refundError.message); }
     console.error(
       "/api/ask fatal error:",
       error
     );
 
     return res
-      .status(500)
+      .status(error.status || 503)
       .json({
-        message:
-          "Internal server error",
-
-        error:
-          error?.message ||
-          "Unknown error",
+        message: error.status ? error.message : "Unable to complete the assessment. Please try again later.",
       });
   }
 }

@@ -1,3 +1,4 @@
+import MembershipPanel, { useMembership } from "../components/MembershipPanel";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -32,25 +33,6 @@ const MODES = [
     placeholder: "Paste the finding, evidence and management context you want reviewed...",
   },
 ];
-
-function createUserId() {
-  if (typeof window === "undefined") {
-    return "bankregx-web";
-  }
-
-  const existing = window.localStorage.getItem("bankregxUserId");
-
-  if (existing) {
-    return existing;
-  }
-
-  const generated = `brx_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 9)}`;
-
-  window.localStorage.setItem("bankregxUserId", generated);
-  return generated;
-}
 
 function buildPrompt(mode, query) {
   const text = String(query || "").trim();
@@ -89,10 +71,11 @@ function formatDate(value) {
 }
 
 export default function Home() {
+  const membership = useMembership();
   const [mode, setMode] = useState("ask");
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
-  const [userId, setUserId] = useState("bankregx-web");
+  const userId = membership.usage?.userId || "bankregx-web";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
@@ -106,7 +89,6 @@ export default function Home() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   useEffect(() => {
-    setUserId(createUserId());
     loadRegulatoryIntelligence();
   }, []);
 
@@ -157,7 +139,7 @@ export default function Home() {
   async function runAssessment() {
     const cleanQuery = query.trim();
 
-    if (!cleanQuery || loading) {
+    if (!cleanQuery || loading || membership.loading || !membership.usage || membership.usage.remaining === 0) {
       return;
     }
 
@@ -174,6 +156,7 @@ export default function Home() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...await membership.headers(),
         },
         body: JSON.stringify({
           query: buildPrompt(mode, cleanQuery),
@@ -206,6 +189,7 @@ export default function Home() {
       );
     } finally {
       setLoading(false);
+      membership.refresh();
     }
   }
 
@@ -318,18 +302,15 @@ export default function Home() {
 
         <section className="hero">
           <div className="eyebrow">
-            CONTROL INTELLIGENCE
+            YOUR FINANCIAL SERVICES CONTROLS COMPANION
           </div>
 
           <h1>
-            What would you like to assess?
+            BankRegX
           </h1>
 
           <p className="heroText">
-            Apply AI, approved BankRegX expert
-            methodology and regulatory intelligence
-            to controls, audit judgements and
-            emerging risk.
+            Financial Services controls made easy
           </p>
         </section>
 
@@ -372,6 +353,8 @@ export default function Home() {
             </button>
           ))}
         </section>
+
+        <MembershipPanel membership={membership} />
 
         <section
           id="assessment-workspace"
@@ -419,7 +402,7 @@ export default function Home() {
                 className="primaryButton"
                 onClick={runAssessment}
                 disabled={
-                  loading ||
+                  loading || membership.loading || !membership.usage || membership.usage.remaining === 0 ||
                   !query.trim()
                 }
               >
