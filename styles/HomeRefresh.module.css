@@ -1,5 +1,5 @@
 /* Extra parent specificity overrides the existing styled-jsx homepage rules. */
-.page { display: flex; flex-direction: column; min-height: 100svh; }
+main.page.page { display: flex; flex-direction: column; min-height: calc(100svh - 76px); }
 .page.page :global(.hero) { width: 100%; text-align: center; padding: clamp(32px, 5vh, 64px) 28px 28px; }
 .page.page :global(section.hero h1) { max-width: none; margin: 12px 0; font-size: clamp(52px, 6vw, 80px); letter-spacing: -.06em; }
 .page.page :global(.heroText) { max-width: none; font-size: 18px; color: #bfdbd6; }
@@ -43,6 +43,9 @@
 .page.page :global(.primaryButton) { border-radius: 12px; background: #5cdec1; color: #073830; box-shadow: 0 4px 0 #155f52; padding: 14px 22px; }
 .page.page :global(.primaryButton:hover:not(:disabled)) { background: #87edd5; }
 .page.page :global(.queryInput:focus-visible), .page.page :global(.modeCard:focus-visible), .back:focus-visible, .discover > summary:focus-visible { outline: 3px solid #f4c166; outline-offset: 5px; }
+@media (max-width: 850px) {
+  main.page.page { min-height: calc(100svh - 68px); }
+}
 @media (max-width: 1000px) {
   .page.page :global(.modeGrid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .page.page :global(.modeCard) { min-height: 145px; }
