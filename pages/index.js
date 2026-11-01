@@ -369,6 +369,17 @@ export default function Home() {
           ))}
         </section>
 
+        <Link href="/regulatory-news" className={design.intelligenceLink}>
+          <span className={design.intelligenceIcon} aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v14H4V5Zm4 4h8M8 12h8M8 15h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </span>
+          <span className={design.intelligenceCopy}>
+            <strong>Explore Regulatory Intelligence</strong>
+            <span>Discover the latest developments affecting financial services controls.</span>
+          </span>
+          <svg className={design.intelligenceArrow} width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </Link>
+
         </>}
 
         <MembershipPanel membership={membership} />

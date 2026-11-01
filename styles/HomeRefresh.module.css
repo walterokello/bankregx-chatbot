@@ -32,6 +32,14 @@
 .page.working :global(.workspaceHeader) { margin-top: 18px; }
 .back { border: 0; background: none; padding: 8px 0; color: #8de4d1; font: inherit; font-size: 14px; cursor: pointer; }
 .questionLabel { display: block; color: #c6ddd7; font-size: 13px; font-weight: 600; margin: 0 0 10px; }
+.intelligenceLink { box-sizing: border-box; display: flex; align-items: center; gap: 18px; width: calc(100% - 56px); max-width: 1064px; margin: 14px auto 0; padding: 20px 24px; border: 1px solid #527f76; border-radius: 18px; background: linear-gradient(110deg, #183e39, #123031); color: #ebfff8; box-shadow: 0 4px 0 #0b2323; transition: transform .16s ease, border-color .16s ease; }
+.intelligenceLink:hover { transform: translateY(-2px); border-color: #90dac3; }
+.intelligenceLink:focus-visible { outline: 3px solid #f4c166; outline-offset: 5px; }
+.intelligenceIcon { display: grid; place-items: center; flex-shrink: 0; width: 46px; height: 46px; border-radius: 13px; background: #f4c166; color: #3e2b10; }
+.intelligenceCopy { display: flex; flex-direction: column; gap: 5px; }
+.intelligenceCopy strong { font-size: 18px; letter-spacing: -.02em; }
+.intelligenceCopy > span { font-size: 13px; color: #bad5cd; line-height: 1.5; }
+.intelligenceArrow { margin-left: auto; flex-shrink: 0; color: #9be2cb; }
 .page.page :global(.primaryButton) { border-radius: 12px; background: #5cdec1; color: #073830; box-shadow: 0 4px 0 #155f52; padding: 14px 22px; }
 .page.page :global(.primaryButton:hover:not(:disabled)) { background: #87edd5; }
 .page.page :global(.queryInput:focus-visible), .page.page :global(.modeCard:focus-visible), .back:focus-visible, .discover > summary:focus-visible { outline: 3px solid #f4c166; outline-offset: 5px; }
@@ -41,6 +49,11 @@
   .page.page :global(.modeTop) { margin-bottom: 12px; }
 }
 @media (max-width: 600px) {
+  .intelligenceLink { width: calc(100% - 36px); gap: 12px; padding: 16px; margin-top: 12px; }
+  .intelligenceIcon { width: 36px; height: 36px; border-radius: 10px; }
+  .intelligenceCopy strong { font-size: 16px; }
+  .intelligenceCopy > span { font-size: 12px; }
+  .intelligenceArrow { width: 20px; }
   .page.page :global(.hero) { padding: 26px 18px 20px; }
   .page.page :global(section.hero h1) { font-size: 50px; }
   .page.page :global(.heroText) { font-size: 15px; }
@@ -57,5 +70,5 @@
   .page.working :global(.workspaceSection) { padding-left: 18px; padding-right: 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .page.page :global(.modeCard), .discover > summary span { transition: none; }
+  .page.page :global(.modeCard), .discover > summary span, .intelligenceLink { transition: none; }
 }
