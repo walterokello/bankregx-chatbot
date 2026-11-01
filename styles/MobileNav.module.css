@@ -1,0 +1,17 @@
+.header { display: none; }
+@media (max-width: 850px) {
+  .header { display: block; position: sticky; top: 0; z-index: 100; box-sizing: border-box; color: #e9f7f2; background: #0a1b1d; border-bottom: 1px solid #ffffff16; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 68px; padding: 10px 18px; box-sizing: border-box; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: #f0fcf8; font-size: 20px; font-weight: 750; letter-spacing: -.6px; text-decoration: none; }
+  .badge { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #39786d; border-radius: 10px; background: #10302e; color: #7ce1cb; font-size: 10px; font-weight: 800; letter-spacing: .5px; }
+  .toggle { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 8px 13px; border: 1px solid #456760; border-radius: 11px; background: #15302f; color: #ddf6ec; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+  .toggle:hover, .toggle[aria-expanded="true"] { background: #1d423c; border-color: #76c7b3; }
+  .menu { position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100svh - 68px); overflow-y: auto; box-sizing: border-box; padding: 18px; background: #0e2425; border-bottom: 1px solid #527a6e; box-shadow: 0 18px 32px #0006; }
+  .label { margin: 0 0 10px; color: #8fb9af; font-size: 9px; font-weight: 700; letter-spacing: 2px; }
+  .link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; box-sizing: border-box; padding: 13px 14px; border-radius: 10px; color: #e1f1eb; text-decoration: none; font-size: 14px; font-weight: 550; }
+  .link[aria-current="page"] { background: #1b403a; color: #9cf0d6; }
+  .link:hover { background: #1b3935; }
+  .admin { margin-top: 12px; border-top: 1px solid #ffffff1c; border-radius: 0; color: #b6d0c7; }
+  .private { padding: 4px 7px; border-radius: 5px; background: #183e36; color: #9bd9c5; font-size: 8px; letter-spacing: 1px; }
+  .toggle:focus-visible, .brand:focus-visible, .link:focus-visible { outline: 3px solid #f4c166; outline-offset: 3px; }
+}

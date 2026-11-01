@@ -1,3 +1,4 @@
+import MobileNav from "../components/MobileNav";
 // pages/_app.js
 import { useEffect } from "react";
 import { useRouter } from "next/router";
@@ -54,7 +55,13 @@ gtag('config', '${GA_ID}', {
         </>
       )}
 
+      <MobileNav />
       <Component {...pageProps} />
+      <style jsx global>{`
+        @media (max-width: 850px) {
+          .siteHeader, .brxNav, main.page > header.header { display: none !important; }
+        }
+      `}</style>
       <Analytics />
     </>
   );
